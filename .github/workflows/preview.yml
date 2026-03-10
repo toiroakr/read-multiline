@@ -28,4 +28,4 @@ jobs:
       - name: Build
         run: pnpm run build
       - name: Publish preview
-        run: pnpm exec pkg-pr-new publish
+        run: pnpm dlx pkg-pr-new publish
