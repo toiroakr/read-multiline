@@ -27,7 +27,7 @@ Best experience with terminals supporting the [kitty keyboard protocol](https://
 ## Install
 
 ```bash
-npm install @toiroakr/read-multiline
+pnpm add @toiroakr/read-multiline
 ```
 
 ## Usage
