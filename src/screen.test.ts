@@ -84,40 +84,43 @@ describe("Screen rendering (virtual terminal)", () => {
   });
 
   // --- Basic rendering ---
+  // New layout: prompt header on line 0 (prefix + prompt), input lines below with linePrefix
 
-  it("displays prompt and typed text", async () => {
+  it("displays prefix header and typed text", async () => {
     const promise = readMultiline({
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
+      // default prefix: "> ", linePrefix: "> "
     });
     input.send("hello");
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> hello");
-    expect(cursorPos(vt.term)).toEqual({ x: 7, y: 0 });
+    expect(screenLine(vt.term, 0)).toBe(">"); // prompt header (prefix only, trimmed)
+    expect(screenLine(vt.term, 1)).toBe("> hello"); // linePrefix + text
+    expect(cursorPos(vt.term)).toEqual({ x: 7, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
   });
 
-  it("displays continuation prompt on newline", async () => {
+  it("displays continuation lines with linePrefix", async () => {
     const promise = readMultiline({
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
-      linePrompt: "  ",
+      prefix: "> ",
+      linePrefix: "  ",
     });
     input.send("line1");
     input.send(KEY.SHIFT_ENTER);
     input.send("line2");
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> line1");
-    expect(screenLine(vt.term, 1)).toBe("  line2");
-    expect(cursorPos(vt.term)).toEqual({ x: 7, y: 1 });
+    expect(screenLine(vt.term, 0)).toBe(">"); // prompt header
+    expect(screenLine(vt.term, 1)).toBe("  line1");
+    expect(screenLine(vt.term, 2)).toBe("  line2");
+    expect(cursorPos(vt.term)).toEqual({ x: 7, y: 2 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -128,8 +131,8 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
-      linePrompt: "  ",
+      prefix: "> ",
+      linePrefix: "  ",
     });
     input.send("aaa");
     input.send(KEY.SHIFT_ENTER);
@@ -138,10 +141,11 @@ describe("Screen rendering (virtual terminal)", () => {
     input.send("ccc");
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> aaa");
-    expect(screenLine(vt.term, 1)).toBe("  bbb");
-    expect(screenLine(vt.term, 2)).toBe("  ccc");
-    expect(cursorPos(vt.term)).toEqual({ x: 5, y: 2 });
+    expect(screenLine(vt.term, 0)).toBe(">"); // prompt header
+    expect(screenLine(vt.term, 1)).toBe("  aaa");
+    expect(screenLine(vt.term, 2)).toBe("  bbb");
+    expect(screenLine(vt.term, 3)).toBe("  ccc");
+    expect(cursorPos(vt.term)).toEqual({ x: 5, y: 3 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -154,15 +158,15 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
+      // default prefix "> "
     });
     input.send("abc");
     input.send(KEY.LEFT);
     input.send(KEY.LEFT);
     await flush(vt.term);
 
-    // cursor should be on 'b': prompt(2) + 1 = col 3 (0-based)
-    expect(cursorPos(vt.term)).toEqual({ x: 3, y: 0 });
+    // cursor should be on 'b': linePrefix(2) + 1 = col 3 (0-based), row 1
+    expect(cursorPos(vt.term)).toEqual({ x: 3, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -173,8 +177,8 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
-      linePrompt: "  ",
+      prefix: "> ",
+      linePrefix: "  ",
     });
     input.send("ab");
     input.send(KEY.SHIFT_ENTER);
@@ -184,8 +188,8 @@ describe("Screen rendering (virtual terminal)", () => {
     input.send(KEY.LEFT); // line 1 end
     await flush(vt.term);
 
-    // cursor at line 0, after "ab": prompt(2) + 2 = col 4
-    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 0 });
+    // cursor at line 0, after "ab": linePrefix(2) + 2 = col 4, row 1
+    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -196,24 +200,24 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
-      linePrompt: "  ",
+      prefix: "> ",
+      linePrefix: "  ",
     });
     input.send("abcde");
     input.send(KEY.SHIFT_ENTER);
     input.send("fg");
     await flush(vt.term);
-    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 1 }); // "  fg|"
+    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 2 }); // "  fg|", row 2
 
     input.send(KEY.UP);
     await flush(vt.term);
-    // col clamped to min(2, 5) = 2, so prompt(2) + 2 = 4
-    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 0 });
+    // col clamped to min(2, 5) = 2, so linePrefix(2) + 2 = 4, row 1
+    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 1 });
 
     input.send(KEY.DOWN);
     await flush(vt.term);
-    // col clamped to min(2, 2) = 2, so linePrompt(2) + 2 = 4
-    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 1 });
+    // col clamped to min(2, 2) = 2, so linePrefix(2) + 2 = 4, row 2
+    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 2 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -226,16 +230,16 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
+      // default prefix "> "
     });
     input.send("ac");
     input.send(KEY.LEFT); // a|c
     input.send("b"); // ab|c
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> abc");
-    // cursor after 'b': prompt(2) + 2 = 4
-    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 0 });
+    expect(screenLine(vt.term, 1)).toBe("> abc");
+    // cursor after 'b': linePrefix(2) + 2 = 4, row 1
+    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -248,14 +252,14 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
+      // default prefix "> "
     });
     input.send("abc");
     input.send(KEY.BACKSPACE);
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> ab");
-    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 0 });
+    expect(screenLine(vt.term, 1)).toBe("> ab");
+    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -266,15 +270,15 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
+      // default prefix "> "
     });
     input.send("abcd");
     input.send(KEY.LEFT); // abc|d
     input.send(KEY.BACKSPACE); // ab|d
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> abd");
-    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 0 });
+    expect(screenLine(vt.term, 1)).toBe("> abd");
+    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -285,8 +289,8 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
-      linePrompt: "  ",
+      prefix: "> ",
+      linePrefix: "  ",
     });
     input.send("ab");
     input.send(KEY.SHIFT_ENTER);
@@ -296,10 +300,10 @@ describe("Screen rendering (virtual terminal)", () => {
     input.send(KEY.BACKSPACE); // merge: "abcd" on line 0
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> abcd");
-    expect(screenLine(vt.term, 1)).toBe(""); // cleared
-    // cursor after "ab": prompt(2) + 2 = 4
-    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 0 });
+    expect(screenLine(vt.term, 1)).toBe("  abcd");
+    expect(screenLine(vt.term, 2)).toBe(""); // cleared
+    // cursor after "ab": linePrefix(2) + 2 = 4, row 1
+    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -312,15 +316,15 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
+      // default prefix "> "
     });
     input.send("hello world");
     input.send(KEY.CTRL_W); // delete "world"
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> hello");
-    // cursor after "hello ": prompt(2) + 6 = 8
-    expect(cursorPos(vt.term)).toEqual({ x: 8, y: 0 });
+    expect(screenLine(vt.term, 1)).toBe("> hello");
+    // cursor after "hello ": linePrefix(2) + 6 = 8, row 1
+    expect(cursorPos(vt.term)).toEqual({ x: 8, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -333,14 +337,14 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
+      // default prefix "> "
     });
     input.send("\u3042\u3044"); // あい (each 2 cols)
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> \u3042\u3044");
-    // prompt(2) + 2*2 = 6
-    expect(cursorPos(vt.term)).toEqual({ x: 6, y: 0 });
+    expect(screenLine(vt.term, 1)).toBe("> \u3042\u3044");
+    // linePrefix(2) + 2*2 = 6
+    expect(cursorPos(vt.term)).toEqual({ x: 6, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -351,19 +355,19 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
+      // default prefix "> "
     });
     input.send("\u3042\u3044\u3046"); // あいう
     input.send(KEY.LEFT); // あい|う
     await flush(vt.term);
 
-    // prompt(2) + 2*2 = 6
-    expect(cursorPos(vt.term)).toEqual({ x: 6, y: 0 });
+    // linePrefix(2) + 2*2 = 6
+    expect(cursorPos(vt.term)).toEqual({ x: 6, y: 1 });
 
     input.send(KEY.LEFT); // あ|いう
     await flush(vt.term);
-    // prompt(2) + 2 = 4
-    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 0 });
+    // linePrefix(2) + 2 = 4
+    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -374,16 +378,16 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
+      // default prefix "> "
     });
     input.send("a\u3042b"); // a + あ(2cols) + b
     input.send(KEY.LEFT); // a あ |b
     input.send(KEY.BACKSPACE); // delete あ -> "ab"
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> ab");
-    // prompt(2) + 1 = 3
-    expect(cursorPos(vt.term)).toEqual({ x: 3, y: 0 });
+    expect(screenLine(vt.term, 1)).toBe("> ab");
+    // linePrefix(2) + 1 = 3
+    expect(cursorPos(vt.term)).toEqual({ x: 3, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -394,16 +398,16 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
+      // default prefix "> "
     });
     input.send("\u3042\u3046"); // あう
     input.send(KEY.LEFT); // あ|う
     input.send("\u3044"); // あい|う
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> \u3042\u3044\u3046");
-    // prompt(2) + 2+2 = 6
-    expect(cursorPos(vt.term)).toEqual({ x: 6, y: 0 });
+    expect(screenLine(vt.term, 1)).toBe("> \u3042\u3044\u3046");
+    // linePrefix(2) + 2+2 = 6
+    expect(cursorPos(vt.term)).toEqual({ x: 6, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -414,18 +418,18 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
+      // default prefix "> "
     });
     input.send("a\u3042b\u3044c"); // a(1) + あ(2) + b(1) + い(2) + c(1) = 7 cols
     await flush(vt.term);
-    // prompt(2) + 7 = 9
-    expect(cursorPos(vt.term)).toEqual({ x: 9, y: 0 });
+    // linePrefix(2) + 7 = 9
+    expect(cursorPos(vt.term)).toEqual({ x: 9, y: 1 });
 
     input.send(KEY.LEFT); // before c: 8
     input.send(KEY.LEFT); // before い: 6
     input.send(KEY.LEFT); // before b: 5
     await flush(vt.term);
-    expect(cursorPos(vt.term)).toEqual({ x: 5, y: 0 });
+    expect(cursorPos(vt.term)).toEqual({ x: 5, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -438,8 +442,8 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
-      linePrompt: "  ",
+      prefix: "> ",
+      linePrefix: "  ",
     });
     input.send("abcd");
     input.send(KEY.LEFT);
@@ -447,10 +451,10 @@ describe("Screen rendering (virtual terminal)", () => {
     input.send(KEY.SHIFT_ENTER); // split: "ab" / "cd"
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> ab");
-    expect(screenLine(vt.term, 1)).toBe("  cd");
-    // cursor at line 1, col 0: linePrompt(2) + 0 = 2
-    expect(cursorPos(vt.term)).toEqual({ x: 2, y: 1 });
+    expect(screenLine(vt.term, 1)).toBe("  ab");
+    expect(screenLine(vt.term, 2)).toBe("  cd");
+    // cursor at line 1, col 0: linePrefix(2) + 0 = 2, row 2
+    expect(cursorPos(vt.term)).toEqual({ x: 2, y: 2 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -463,14 +467,14 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
+      // default prefix "> "
     });
     input.send("hello world");
     input.send(KEY.ALT_LEFT); // jump to |world
     await flush(vt.term);
 
-    // prompt(2) + 6("hello ") = 8
-    expect(cursorPos(vt.term)).toEqual({ x: 8, y: 0 });
+    // linePrefix(2) + 6("hello ") = 8
+    expect(cursorPos(vt.term)).toEqual({ x: 8, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -483,16 +487,16 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
+      // default prefix "> "
     });
     input.send("hello");
     input.send(KEY.HOME);
     await flush(vt.term);
-    expect(cursorPos(vt.term)).toEqual({ x: 2, y: 0 }); // prompt(2)
+    expect(cursorPos(vt.term)).toEqual({ x: 2, y: 1 }); // linePrefix(2)
 
     input.send(KEY.END);
     await flush(vt.term);
-    expect(cursorPos(vt.term)).toEqual({ x: 7, y: 0 }); // prompt(2) + 5
+    expect(cursorPos(vt.term)).toEqual({ x: 7, y: 1 }); // linePrefix(2) + 5
 
     input.send(KEY.ENTER);
     await promise;
@@ -505,19 +509,19 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
-      linePrompt: "  ",
+      prefix: "> ",
+      linePrefix: "  ",
     });
     input.send("abc");
     input.send(KEY.SHIFT_ENTER);
     input.send("def");
     input.send(KEY.CMD_UP); // buffer start
     await flush(vt.term);
-    expect(cursorPos(vt.term)).toEqual({ x: 2, y: 0 }); // prompt(2) + 0
+    expect(cursorPos(vt.term)).toEqual({ x: 2, y: 1 }); // linePrefix(2) + 0, row 1
 
     input.send(KEY.CMD_DOWN); // buffer end
     await flush(vt.term);
-    expect(cursorPos(vt.term)).toEqual({ x: 5, y: 1 }); // linePrompt(2) + 3
+    expect(cursorPos(vt.term)).toEqual({ x: 5, y: 2 }); // linePrefix(2) + 3, row 2
 
     input.send(KEY.ENTER);
     await promise;
@@ -530,50 +534,54 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
-      linePrompt: "  ",
+      prefix: "> ",
+      linePrefix: "  ",
     });
     input.send("\x1b[200~line1\nline2\nline3\x1b[201~");
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> line1");
-    expect(screenLine(vt.term, 1)).toBe("  line2");
-    expect(screenLine(vt.term, 2)).toBe("  line3");
-    expect(cursorPos(vt.term)).toEqual({ x: 7, y: 2 });
+    expect(screenLine(vt.term, 0)).toBe(">"); // prompt header
+    expect(screenLine(vt.term, 1)).toBe("  line1");
+    expect(screenLine(vt.term, 2)).toBe("  line2");
+    expect(screenLine(vt.term, 3)).toBe("  line3");
+    expect(cursorPos(vt.term)).toEqual({ x: 7, y: 3 });
 
     input.send(KEY.ENTER);
     await promise;
   });
 
-  // --- Prompt width edge cases ---
+  // --- Prefix width edge cases ---
 
-  it("wide prompt offsets cursor correctly", async () => {
+  it("wide prefix offsets cursor correctly", async () => {
     const promise = readMultiline({
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "input>>> ",
+      prefix: "input>>> ",
     });
     input.send("x");
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("input>>> x");
-    // prompt(9) + 1 = 10
-    expect(cursorPos(vt.term)).toEqual({ x: 10, y: 0 });
+    expect(screenLine(vt.term, 0)).toBe("input>>>"); // prompt header (trimmed)
+    expect(screenLine(vt.term, 1)).toBe("input>>> x");
+    // linePrefix(9) + 1 = 10, row 1
+    expect(cursorPos(vt.term)).toEqual({ x: 10, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
   });
 
-  it("no prompt starts cursor at column 0", async () => {
+  it("no prefix starts cursor at column 0", async () => {
     const promise = readMultiline({
       input,
       output: vt.stream,
       helpFooter: false,
+      prefix: "",
     });
     input.send("abc");
     await flush(vt.term);
 
+    // No prompt header (prefix="" and prompt=""), input starts at row 0
     expect(screenLine(vt.term, 0)).toBe("abc");
     expect(cursorPos(vt.term)).toEqual({ x: 3, y: 0 });
 
@@ -588,7 +596,7 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
+      // default prefix "> "
     });
     input.send("abcd");
     input.send(KEY.LEFT);
@@ -596,8 +604,8 @@ describe("Screen rendering (virtual terminal)", () => {
     input.send(KEY.DELETE); // ab|d
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> abd");
-    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 0 });
+    expect(screenLine(vt.term, 1)).toBe("> abd");
+    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -608,8 +616,8 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
-      linePrompt: "  ",
+      prefix: "> ",
+      linePrefix: "  ",
     });
     input.send("ab");
     input.send(KEY.SHIFT_ENTER);
@@ -619,9 +627,9 @@ describe("Screen rendering (virtual terminal)", () => {
     input.send(KEY.DELETE); // merge
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> abcd");
-    expect(screenLine(vt.term, 1)).toBe("");
-    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 0 });
+    expect(screenLine(vt.term, 1)).toBe("  abcd");
+    expect(screenLine(vt.term, 2)).toBe("");
+    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -634,7 +642,7 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
+      // default prefix "> "
     });
     input.send("hello world");
     input.send(KEY.LEFT);
@@ -645,8 +653,8 @@ describe("Screen rendering (virtual terminal)", () => {
     input.send(KEY.CTRL_U);
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> world");
-    expect(cursorPos(vt.term)).toEqual({ x: 2, y: 0 });
+    expect(screenLine(vt.term, 1)).toBe("> world");
+    expect(cursorPos(vt.term)).toEqual({ x: 2, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -657,7 +665,7 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
+      // default prefix "> "
     });
     input.send("hello world");
     input.send(KEY.LEFT);
@@ -668,8 +676,8 @@ describe("Screen rendering (virtual terminal)", () => {
     input.send(KEY.CTRL_K);
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> hello");
-    expect(cursorPos(vt.term)).toEqual({ x: 8, y: 0 });
+    expect(screenLine(vt.term, 1)).toBe("> hello");
+    expect(cursorPos(vt.term)).toEqual({ x: 8, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -682,13 +690,14 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
+      // default prefix "> "
       initialValue: "hello",
     });
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> hello");
-    expect(cursorPos(vt.term)).toEqual({ x: 7, y: 0 });
+    expect(screenLine(vt.term, 0)).toBe(">"); // prompt header
+    expect(screenLine(vt.term, 1)).toBe("> hello");
+    expect(cursorPos(vt.term)).toEqual({ x: 7, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -699,15 +708,16 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
-      linePrompt: "  ",
+      prefix: "> ",
+      linePrefix: "  ",
       initialValue: "line1\nline2",
     });
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> line1");
-    expect(screenLine(vt.term, 1)).toBe("  line2");
-    expect(cursorPos(vt.term)).toEqual({ x: 7, y: 1 });
+    expect(screenLine(vt.term, 0)).toBe(">"); // prompt header
+    expect(screenLine(vt.term, 1)).toBe("  line1");
+    expect(screenLine(vt.term, 2)).toBe("  line2");
+    expect(cursorPos(vt.term)).toEqual({ x: 7, y: 2 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -720,7 +730,7 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
+      // default prefix "> "
       history: ["old entry"],
     });
     input.send("current");
@@ -728,15 +738,15 @@ describe("Screen rendering (virtual terminal)", () => {
     input.send(KEY.UP); // -> "old entry" (cursor at start)
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> old entry");
-    expect(cursorPos(vt.term)).toEqual({ x: 2, y: 0 });
+    expect(screenLine(vt.term, 1)).toBe("> old entry");
+    expect(cursorPos(vt.term)).toEqual({ x: 2, y: 1 });
 
     input.send(KEY.END); // move to end
     input.send(KEY.DOWN); // -> "current"
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> current");
-    expect(cursorPos(vt.term)).toEqual({ x: 9, y: 0 });
+    expect(screenLine(vt.term, 1)).toBe("> current");
+    expect(cursorPos(vt.term)).toEqual({ x: 9, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -749,24 +759,24 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
-      linePrompt: "  ",
+      prefix: "> ",
+      linePrefix: "  ",
     });
     input.send("abc");
     input.send(KEY.SHIFT_ENTER);
     input.send("def");
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> abc");
-    expect(screenLine(vt.term, 1)).toBe("  def");
+    expect(screenLine(vt.term, 1)).toBe("  abc");
+    expect(screenLine(vt.term, 2)).toBe("  def");
 
     input.send(KEY.CTRL_Z); // undo "def"
     input.send(KEY.CTRL_Z); // undo newline
     await flush(vt.term);
 
-    expect(screenLine(vt.term, 0)).toBe("> abc");
-    expect(screenLine(vt.term, 1)).toBe(""); // cleared
-    expect(cursorPos(vt.term)).toEqual({ x: 5, y: 0 });
+    expect(screenLine(vt.term, 1)).toBe("  abc");
+    expect(screenLine(vt.term, 2)).toBe(""); // cleared
+    expect(cursorPos(vt.term)).toEqual({ x: 5, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -777,18 +787,18 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
+      // default prefix "> "
     });
     input.send("hello");
     input.send(KEY.CTRL_Z); // undo
     await flush(vt.term);
-    expect(screenLine(vt.term, 0)).toBe(">");
-    expect(cursorPos(vt.term)).toEqual({ x: 2, y: 0 });
+    expect(screenLine(vt.term, 1)).toBe(">");
+    expect(cursorPos(vt.term)).toEqual({ x: 2, y: 1 });
 
     input.send(KEY.CTRL_Y); // redo
     await flush(vt.term);
-    expect(screenLine(vt.term, 0)).toBe("> hello");
-    expect(cursorPos(vt.term)).toEqual({ x: 7, y: 0 });
+    expect(screenLine(vt.term, 1)).toBe("> hello");
+    expect(cursorPos(vt.term)).toEqual({ x: 7, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -801,8 +811,8 @@ describe("Screen rendering (virtual terminal)", () => {
       input,
       output: vt.stream,
       helpFooter: false,
-      prompt: "> ",
-      linePrompt: "  ",
+      prefix: "> ",
+      linePrefix: "  ",
     });
     input.send("line1");
     input.send(KEY.SHIFT_ENTER);
@@ -812,9 +822,10 @@ describe("Screen rendering (virtual terminal)", () => {
     await flush(vt.term);
 
     // After clear, content should be at top of screen
-    expect(screenLine(vt.term, 0)).toBe("> line1");
-    expect(screenLine(vt.term, 1)).toBe("  line2");
-    expect(cursorPos(vt.term).y).toBe(0);
+    expect(screenLine(vt.term, 0)).toBe(">"); // prompt header
+    expect(screenLine(vt.term, 1)).toBe("  line1");
+    expect(screenLine(vt.term, 2)).toBe("  line2");
+    expect(cursorPos(vt.term).y).toBe(1);
 
     input.send(KEY.ENTER);
     await promise;

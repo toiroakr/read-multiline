@@ -197,10 +197,10 @@ export function deleteToLineStart(state: EditorState): void {
   const deletedWidth = stringWidth(state.lines[state.row].slice(0, state.col));
   state.lines[state.row] = state.lines[state.row].slice(state.col);
   state.col = 0;
-  w(state, `\x1b[${pW(state, state.row) + 1}G`);
+  w(state, `\x1b[${pW(state) + 1}G`);
   w(state, state.lines[state.row]);
   w(state, " ".repeat(deletedWidth));
-  w(state, `\x1b[${pW(state, state.row) + 1}G`);
+  w(state, `\x1b[${pW(state) + 1}G`);
   onContentChanged(state);
 }
 

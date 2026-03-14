@@ -3,12 +3,17 @@ import { handleDelete } from "./editing.js";
 import { buildHelpFooter, detectKittyProtocol } from "./footer.js";
 import { appendHistory, loadHistory, saveHistory } from "./history.js";
 import { buildKeyMap, onData } from "./input.js";
+import * as presets from "./presets/index.js";
 import { clearBelowEditor, clearScreen, setFooter, setStatus, tCol, w } from "./rendering.js";
+import { applyStyle, buildPromptHeader, buildStyledLinePrefix, resolveStateful } from "./style.js";
 import type {
   EditorState,
   HistoryOptions,
+  PromptTheme,
   ReadMultilineOptions,
   ReadMultilineResult,
+  SharedConfig,
+  Stateful,
   TTYInput,
 } from "./types.js";
 export type {
@@ -18,11 +23,35 @@ export type {
   HelpFooterDisplayOptions,
   HistoryOptions,
   ModifiedEnterKey,
+  PromptTheme,
   ReadMultilineError,
   ReadMultilineOptions,
   ReadMultilineResult,
+  SharedConfig,
+  Stateful,
+  StyleTextFormat,
   TTYInput,
 } from "./types.js";
+export { presets };
+
+/**
+ * Create a reusable prompt function with shared configuration.
+ * Per-call options are shallow-merged over the shared config.
+ *
+ * @example
+ * ```typescript
+ * const ask = createPrompt({ prefix: "? ", theme: { prompt: "bold" } });
+ * const name = await ask({ prompt: "Name:" });
+ * const email = await ask({ prompt: "Email:" });
+ * ```
+ */
+export function createPrompt(
+  shared: SharedConfig,
+): (options?: ReadMultilineOptions) => Promise<ReadMultilineResult> {
+  return (options: ReadMultilineOptions = {}): Promise<ReadMultilineResult> => {
+    return readMultiline({ ...shared, ...options });
+  };
+}
 
 /**
  * Read multi-line input from the terminal.
@@ -52,20 +81,13 @@ export type {
  * For non-TTY input (pipes), reads all lines until EOF.
  */
 export function readMultiline(options: ReadMultilineOptions = {}): Promise<ReadMultilineResult> {
-  const {
-    prompt = "",
-    linePrompt,
-    input = process.stdin as TTYInput,
-    output = process.stdout,
-  } = options;
-
-  const contPrompt = linePrompt ?? prompt;
+  const { input = process.stdin as TTYInput, output = process.stdout } = options;
 
   if (!input.isTTY) {
     return readFromPipe(input);
   }
 
-  return readFromTTY(input, output, prompt, contPrompt, options);
+  return readFromTTY(input, output, options);
 }
 
 function readFromPipe(input: NodeJS.ReadableStream): Promise<ReadMultilineResult> {
@@ -83,12 +105,14 @@ function readFromPipe(input: NodeJS.ReadableStream): Promise<ReadMultilineResult
 function readFromTTY(
   input: TTYInput,
   output: NodeJS.WritableStream,
-  prompt: string,
-  linePrompt: string,
   options: ReadMultilineOptions,
 ): Promise<ReadMultilineResult> {
   return new Promise((resolve) => {
     const {
+      prefix: prefixOption = "> ",
+      prompt: rawPrompt = "",
+      linePrefix: linePrefixOption,
+      theme,
       initialValue,
       history: historyOption,
       historyArrowNavigation = "single",
@@ -103,6 +127,16 @@ function readFromTTY(
       helpFooter = true,
     } = options;
 
+    // Resolve linePrefix: defaults to prefix
+    const resolvedLinePrefixOption: Stateful<string> = linePrefixOption ?? prefixOption;
+
+    // Build pending-state prompt header and line prefix
+    const promptHeader = buildPromptHeader(prefixOption, rawPrompt, theme, "pending");
+    const hasPromptHeader = resolveStateful(prefixOption, "pending") !== "" || rawPrompt !== "";
+    const styledLinePrefix = buildStyledLinePrefix(resolvedLinePrefixOption, theme, "pending");
+    const rawLinePrefix = resolveStateful(resolvedLinePrefixOption, "pending");
+    const linePrefixWidth = stringWidth(rawLinePrefix);
+
     const historyConfig: HistoryOptions | undefined =
       historyOption && !Array.isArray(historyOption) ? historyOption : undefined;
     const historyEntries = Array.isArray(historyOption)
@@ -116,10 +150,14 @@ function readFromTTY(
       row: 0,
       col: 0,
       output,
-      prompt,
-      linePrompt,
-      promptWidth: stringWidth(prompt),
-      linePromptWidth: stringWidth(linePrompt),
+      promptHeader,
+      promptHeaderHeight: hasPromptHeader ? 1 : 0,
+      styledLinePrefix,
+      linePrefixWidth,
+      theme,
+      prefixOption,
+      linePrefixOption: resolvedLinePrefixOption,
+      rawPrompt,
       statusText: "",
       statusColor: "",
       footerText: footer ?? "",
@@ -185,6 +223,10 @@ function readFromTTY(
       input.pause();
     }
 
+    // Determine submitRender mode
+    const submitRender: "clear" | "preserve" =
+      theme?.submitRender ?? (clearAfterSubmit ? "clear" : "preserve");
+
     function submit() {
       if (validate) {
         const error = validate(state.lines.join("\n"));
@@ -195,20 +237,24 @@ function readFromTTY(
         }
       }
       const result = state.lines.join("\n");
-      if (clearAfterSubmit) {
-        // Clear editor + status + footer in one pass before cleanup
-        // to avoid scroll issues from clearBelowEditor's \r\n
-        if (state.row > 0) w(state, `\x1b[${state.row}A`);
+
+      if (submitRender === "clear") {
+        // Clear editor + prompt header + status + footer
+        const upCount = state.row + state.promptHeaderHeight;
+        if (upCount > 0) w(state, `\x1b[${upCount}A`);
         w(state, "\r\x1b[J");
-        // Reset state so cleanup's clearBelowEditor is a no-op
         state.statusText = "";
         state.statusColor = "";
         state.footerText = "";
         state.row = 0;
         state.col = 0;
+      } else {
+        // preserve: re-render with submitted state
+        renderSubmitted(state, theme);
       }
+
       cleanup();
-      if (!clearAfterSubmit) {
+      if (submitRender !== "clear") {
         w(state, "\n");
       }
       if (historyConfig?.filePath) {
@@ -241,18 +287,25 @@ function readFromTTY(
 
     // --- Initialization ---
 
-    if (prompt) w(state, prompt);
+    // Draw prompt header line
+    if (hasPromptHeader) {
+      w(state, promptHeader);
+      w(state, "\n");
+    }
+
+    // Draw first input line with linePrefix
+    w(state, styledLinePrefix);
 
     if (initialValue) {
       const initLines = initialValue.split("\n");
       state.lines.length = 0;
       state.lines.push(...initLines);
-      w(state, state.lines[0]);
-      for (let i = 1; i < state.lines.length; i++) {
-        w(state, "\n" + linePrompt + state.lines[i]);
+      w(state, initLines[0]);
+      for (let i = 1; i < initLines.length; i++) {
+        w(state, "\n" + styledLinePrefix + initLines[i]);
       }
-      state.row = state.lines.length - 1;
-      state.col = state.lines[state.row].length;
+      state.row = initLines.length - 1;
+      state.col = initLines[state.row].length;
     }
 
     if (footer) {
@@ -306,4 +359,40 @@ function readFromTTY(
 
     input.on("data", dataHandler);
   });
+}
+
+/** Re-render the editor in submitted state with updated prefix/linePrefix and styles */
+function renderSubmitted(state: EditorState, theme: PromptTheme | undefined): void {
+  // Move to top of editor (input lines + prompt header)
+  const upCount = state.row + state.promptHeaderHeight;
+  if (upCount > 0) w(state, `\x1b[${upCount}A`);
+  w(state, "\r\x1b[J");
+
+  // Rebuild prompt header and line prefix in submitted state
+  const submittedHeader = buildPromptHeader(
+    state.prefixOption,
+    state.rawPrompt,
+    theme,
+    "submitted",
+  );
+  const submittedLinePrefix = buildStyledLinePrefix(state.linePrefixOption, theme, "submitted");
+
+  // Draw submitted prompt header
+  if (state.promptHeaderHeight > 0) {
+    w(state, submittedHeader);
+    w(state, "\n");
+  }
+
+  // Draw input lines with submitted line prefix and answer style
+  for (let i = 0; i < state.lines.length; i++) {
+    if (i > 0) w(state, "\n");
+    w(state, submittedLinePrefix + applyStyle(state.lines[i], theme?.answer));
+  }
+
+  // Reset state for cleanup
+  state.statusText = "";
+  state.statusColor = "";
+  state.footerText = "";
+  state.row = state.lines.length - 1;
+  state.col = state.lines[state.row].length;
 }

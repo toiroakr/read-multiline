@@ -1,4 +1,5 @@
 import { stringWidth } from "./chars.js";
+import { applyStyle } from "./style.js";
 import type { EditorState, Snapshot } from "./types.js";
 
 /** Write text to the output stream (or buffer if batching) */
@@ -25,14 +26,19 @@ export function flushBatch(state: EditorState): void {
   }
 }
 
-/** Get the prompt display width for the given row */
-export function pW(state: EditorState, r: number): number {
-  return r === 0 ? state.promptWidth : state.linePromptWidth;
+/** Get the line prefix display width (same for all input rows) */
+export function pW(state: EditorState): number {
+  return state.linePrefixWidth;
 }
 
 /** Get 1-based terminal column from line start to code unit index, accounting for display width */
 export function tCol(state: EditorState, r: number, c: number): number {
-  return pW(state, r) + stringWidth(state.lines[r].slice(0, c)) + 1;
+  return pW(state) + stringWidth(state.lines[r].slice(0, c)) + 1;
+}
+
+/** Style input text according to the theme */
+function styledInput(state: EditorState, text: string): string {
+  return applyStyle(text, state.theme?.input);
 }
 
 /** Move terminal cursor from current position to (newRow, newCol) */
@@ -140,9 +146,9 @@ export function redrawFrom(
 
   w(state, "\x1b[J");
 
-  w(state, state.lines[fromRow]);
+  w(state, styledInput(state, state.lines[fromRow]));
   for (let i = fromRow + 1; i < state.lines.length; i++) {
-    w(state, "\n" + state.linePrompt + state.lines[i]);
+    w(state, "\n" + state.styledLinePrefix + styledInput(state, state.lines[i]));
   }
 
   const endRow = state.lines.length - 1;
@@ -159,12 +165,21 @@ export function redrawFrom(
 /** Clear screen and redraw all content with in-place rendering to reduce flicker */
 export function clearScreen(state: EditorState): void {
   beginBatch(state);
-  // Move to top-left and overwrite content in-place instead of clearing first
-  if (state.row > 0) w(state, `\x1b[${state.row}A`);
+  // Move to top of editor (input lines + prompt header)
+  const upCount = state.row + state.promptHeaderHeight;
+  if (upCount > 0) w(state, `\x1b[${upCount}A`);
   w(state, "\r");
-  w(state, state.prompt + state.lines[0] + "\x1b[K");
+
+  // Draw prompt header if present
+  if (state.promptHeaderHeight > 0) {
+    w(state, state.promptHeader + "\x1b[K");
+    w(state, "\n");
+  }
+
+  // Draw all input lines with linePrefix
+  w(state, state.styledLinePrefix + styledInput(state, state.lines[0]) + "\x1b[K");
   for (let i = 1; i < state.lines.length; i++) {
-    w(state, "\n" + state.linePrompt + state.lines[i] + "\x1b[K");
+    w(state, "\n" + state.styledLinePrefix + styledInput(state, state.lines[i]) + "\x1b[K");
   }
   // Clear any remaining lines below
   w(state, "\x1b[J");
@@ -182,11 +197,11 @@ export function restoreSnapshot(state: EditorState, snap: Snapshot): void {
   state.lines.push(...snap.lines);
   if (state.row > 0) w(state, `\x1b[${state.row}A`);
   w(state, "\r");
-  w(state, `\x1b[${pW(state, 0) + 1}G`);
+  w(state, `\x1b[${pW(state) + 1}G`);
   w(state, "\x1b[J");
-  w(state, state.lines[0]);
+  w(state, styledInput(state, state.lines[0]));
   for (let i = 1; i < state.lines.length; i++) {
-    w(state, "\n" + state.linePrompt + state.lines[i]);
+    w(state, "\n" + state.styledLinePrefix + styledInput(state, state.lines[i]));
   }
   const endRow = state.lines.length - 1;
   if (endRow > snap.row) w(state, `\x1b[${endRow - snap.row}A`);

@@ -1,6 +1,37 @@
 import type { styleText } from "node:util";
 
-type StyleTextFormat = Parameters<typeof styleText>[0];
+export type StyleTextFormat = Parameters<typeof styleText>[0];
+
+/** A value that can vary between pending (editing) and submitted states */
+export type Stateful<T> = T | { pending: T; submitted: T };
+
+/** Theme configuration for styling prompt elements */
+export interface PromptTheme {
+  /** Style for the prefix text */
+  prefix?: Stateful<StyleTextFormat>;
+  /** Style for the line prefix text */
+  linePrefix?: Stateful<StyleTextFormat>;
+  /** Style for the prompt message text */
+  prompt?: StyleTextFormat;
+  /** Style for user input text while editing */
+  input?: StyleTextFormat;
+  /** Style for the answer text after submission */
+  answer?: StyleTextFormat;
+
+  /**
+   * How to render the prompt after submission.
+   * - "clear": erase the prompt and input from the terminal (default)
+   * - "preserve": re-render with submitted-state prefix/linePrefix and styles
+   */
+  submitRender?: "clear" | "preserve";
+
+  /** Style for validation error messages */
+  error?: StyleTextFormat;
+  /** Style for validation success messages */
+  success?: StyleTextFormat;
+  /** Style for footer text */
+  footer?: StyleTextFormat;
+}
 
 /** Error returned when the user cancels input with Ctrl+C. */
 export interface CancelError {
@@ -21,11 +52,17 @@ export type ReadMultilineError = CancelError | EOFError;
 export type ReadMultilineResult = [string, null] | [null, ReadMultilineError];
 
 export interface ReadMultilineOptions {
-  /** Prompt displayed on the first line */
+  /** Prefix displayed before the prompt message (default: "> "). Can be state-dependent. */
+  prefix?: Stateful<string>;
+
+  /** Prompt message displayed on the header line above input */
   prompt?: string;
 
-  /** Prompt displayed on continuation lines (2nd line onwards) */
-  linePrompt?: string;
+  /** Prefix displayed on each input line (default: prefix value). Can be state-dependent. */
+  linePrefix?: Stateful<string>;
+
+  /** Theme for styling prompt elements */
+  theme?: PromptTheme;
 
   /** Input stream (default: process.stdin) */
   input?: TTYInput;
@@ -86,6 +123,7 @@ export interface ReadMultilineOptions {
    * Whether to clear the input from the terminal after submission (default: true).
    * - true: input is erased from the terminal after submit
    * - false: input remains visible in the terminal after submit
+   * @deprecated Use `theme.submitRender` instead ("clear" or "preserve")
    */
   clearAfterSubmit?: boolean;
 
@@ -155,6 +193,9 @@ export interface Snapshot {
   col: number;
 }
 
+/** Shared configuration that can be reused across multiple readMultiline calls via createPrompt */
+export type SharedConfig = Omit<ReadMultilineOptions, "prompt">;
+
 export interface EditorState {
   // Buffer
   lines: string[];
@@ -164,11 +205,19 @@ export interface EditorState {
   // Output
   output: NodeJS.WritableStream;
 
-  // Prompt (readonly after init)
-  prompt: string;
-  linePrompt: string;
-  promptWidth: number;
-  linePromptWidth: number;
+  // Prompt header (readonly after init)
+  promptHeader: string;
+  promptHeaderHeight: number;
+
+  // Line prefix for all input lines (readonly after init)
+  styledLinePrefix: string;
+  linePrefixWidth: number;
+
+  // Theme & raw values for submitted-state re-rendering
+  theme: PromptTheme | undefined;
+  prefixOption: Stateful<string>;
+  linePrefixOption: Stateful<string>;
+  rawPrompt: string;
 
   // Status line
   statusText: string;

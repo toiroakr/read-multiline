@@ -504,23 +504,25 @@ describe("readMultiline (TTY mode)", () => {
     expect(output.chunks).toContain("\x1b[<u");
   });
 
-  it("displays the prompt", async () => {
+  it("displays the prompt header", async () => {
     const promise = readMultiline({
       input,
       output: output.stream,
-      prompt: "> ",
+      prefix: "> ",
+      prompt: "Name:",
     });
-    expect(output.chunks[0]).toBe("> ");
+    const joined = output.chunks.join("");
+    expect(joined).toContain("> Name:");
     input.send(KEY.ENTER);
     await promise;
   });
 
-  it("displays linePrompt on continuation lines", async () => {
+  it("displays linePrefix on continuation lines", async () => {
     const promise = readMultiline({
       input,
       output: output.stream,
-      prompt: "> ",
-      linePrompt: "... ",
+      prefix: "> ",
+      linePrefix: "... ",
     });
     input.send("a");
     input.send(KEY.SHIFT_ENTER);
@@ -672,11 +674,12 @@ describe("readMultiline (TTY mode)", () => {
     await promise;
   });
 
-  it("writes correct ANSI cursor column with prompt offset on moveTo", async () => {
+  it("writes correct ANSI cursor column with linePrefix offset on moveTo", async () => {
     const promise = readMultiline({
       input,
       output: output.stream,
-      prompt: ">>> ",
+      prefix: ">>> ",
+      // linePrefix defaults to prefix = ">>> " (width 4)
     });
     input.send("ab");
     input.send(KEY.SHIFT_ENTER);
@@ -907,13 +910,13 @@ describe("readMultiline (TTY mode)", () => {
     // and potentially cause errors. This test verifies cleanup completes cleanly.
   });
 
-  // --- linePrompt default ---
+  // --- linePrefix default ---
 
-  it("uses prompt as default linePrompt when linePrompt is not specified", async () => {
+  it("uses prefix as default linePrefix when linePrefix is not specified", async () => {
     const promise = readMultiline({
       input,
       output: output.stream,
-      prompt: ">> ",
+      prefix: ">> ",
     });
     input.send("a");
     input.send(KEY.SHIFT_ENTER);
