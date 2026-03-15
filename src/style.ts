@@ -3,8 +3,14 @@ import { styleText } from "node:util";
 import type { PromptTheme, Stateful, StyleTextFormat } from "./types.js";
 
 /** Resolve a Stateful value to its concrete value for the given state */
-export function resolveStateful<T>(value: Stateful<T>, state: "pending" | "submitted"): T {
+export function resolveStateful<T>(
+  value: Stateful<T>,
+  state: "pending" | "submitted" | "cancelled",
+): T {
   if (value !== null && typeof value === "object" && "pending" in value && "submitted" in value) {
+    if (state === "cancelled") {
+      return (value as { pending: T; submitted: T; cancelled?: T }).cancelled ?? value.pending;
+    }
     return value[state];
   }
   return value as T;
@@ -21,7 +27,7 @@ export function buildPromptHeader(
   prefixOption: Stateful<string>,
   prompt: string,
   theme: PromptTheme | undefined,
-  state: "pending" | "submitted",
+  state: "pending" | "submitted" | "cancelled",
 ): string {
   const prefix = resolveStateful(prefixOption, state);
   const styledPrefix = applyStyle(
@@ -36,7 +42,7 @@ export function buildPromptHeader(
 export function buildStyledLinePrefix(
   linePrefixOption: Stateful<string>,
   theme: PromptTheme | undefined,
-  state: "pending" | "submitted",
+  state: "pending" | "submitted" | "cancelled",
 ): string {
   const linePrefix = resolveStateful(linePrefixOption, state);
   const style = theme?.linePrefix ? resolveStateful(theme.linePrefix, state) : undefined;

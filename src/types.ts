@@ -2,8 +2,8 @@ import type { styleText } from "node:util";
 
 export type StyleTextFormat = Parameters<typeof styleText>[0];
 
-/** A value that can vary between pending (editing) and submitted states */
-export type Stateful<T> = T | { pending: T; submitted: T };
+/** A value that can vary between pending (editing), submitted, and cancelled states */
+export type Stateful<T> = T | { pending: T; submitted: T; cancelled?: T };
 
 /** Theme configuration for styling prompt elements */
 export interface PromptTheme {
@@ -17,6 +17,8 @@ export interface PromptTheme {
   input?: StyleTextFormat;
   /** Style for the answer text after submission */
   answer?: StyleTextFormat;
+  /** Style for the answer text after cancellation (e.g. ["strikethrough", "dim"] for clack) */
+  cancelAnswer?: StyleTextFormat;
 
   /**
    * How to render the prompt after submission.
@@ -24,6 +26,13 @@ export interface PromptTheme {
    * - "preserve": re-render with submitted-state prefix/linePrefix and styles
    */
   submitRender?: "clear" | "preserve";
+
+  /**
+   * How to render the prompt after cancellation (Ctrl+C).
+   * - "clear": erase the prompt and input from the terminal (default)
+   * - "preserve": re-render with cancelled-state prefix/linePrefix and styles
+   */
+  cancelRender?: "clear" | "preserve";
 
   /** Style for validation error messages */
   error?: StyleTextFormat;

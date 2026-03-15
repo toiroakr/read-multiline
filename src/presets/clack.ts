@@ -15,19 +15,28 @@ import type { SharedConfig } from "../types.js";
  *   │        ← gray guide bar
  *   ◇  msg   ← green submit symbol
  *   │  value ← gray bar + dim answer
+ *
+ * Cancelled:
+ *   │        ← gray guide bar
+ *   ■  msg   ← red cancel symbol
+ *   │  value ← gray bar + strikethrough dim answer
  */
 export const clack: SharedConfig = {
   prefix: {
     pending: styleText("gray", "│") + "\n" + styleText("cyan", "◆") + "  ",
     submitted: styleText("gray", "│") + "\n" + styleText("green", "◇") + "  ",
+    cancelled: styleText("gray", "│") + "\n" + styleText("red", "■") + "  ",
   },
   linePrefix: {
     pending: styleText("cyan", "│") + "  ",
     submitted: styleText("gray", "│") + "  ",
+    cancelled: styleText("gray", "│") + "  ",
   },
   footer: styleText("cyan", "└"),
   theme: {
     answer: "dim",
+    cancelAnswer: ["strikethrough", "dim"],
     submitRender: "preserve",
+    cancelRender: "preserve",
   },
 };

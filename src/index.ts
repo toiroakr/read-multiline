@@ -223,9 +223,10 @@ function readFromTTY(
       input.pause();
     }
 
-    // Determine submitRender mode
+    // Determine submitRender and cancelRender modes
     const submitRender: "clear" | "preserve" =
       theme?.submitRender ?? (clearAfterSubmit ? "clear" : "preserve");
+    const cancelRender: "clear" | "preserve" = theme?.cancelRender ?? "clear";
 
     function submit() {
       if (validate) {
@@ -250,7 +251,7 @@ function readFromTTY(
         state.col = 0;
       } else {
         // preserve: re-render with submitted state
-        renderSubmitted(state, theme);
+        renderStateChange(state, theme, "submitted");
       }
 
       cleanup();
@@ -277,8 +278,24 @@ function readFromTTY(
     }
 
     function cancel() {
+      if (cancelRender === "preserve") {
+        renderStateChange(state, theme, "cancelled");
+      } else {
+        // Clear editor + prompt header + status + footer
+        const upCount = state.row + state.promptHeaderHeight;
+        if (upCount > 0) w(state, `\x1b[${upCount}A`);
+        w(state, "\r\x1b[J");
+        state.statusText = "";
+        state.statusColor = "";
+        state.footerText = "";
+        state.row = 0;
+        state.col = 0;
+      }
+
       cleanup();
-      w(state, "\n");
+      if (cancelRender !== "clear") {
+        w(state, "\n");
+      }
       resolve([null, { kind: "cancel", message: "Input cancelled" }]);
     }
 
@@ -362,32 +379,35 @@ function readFromTTY(
   });
 }
 
-/** Re-render the editor in submitted state with updated prefix/linePrefix and styles */
-function renderSubmitted(state: EditorState, theme: PromptTheme | undefined): void {
+/** Re-render the editor in submitted or cancelled state with updated prefix/linePrefix and styles */
+function renderStateChange(
+  state: EditorState,
+  theme: PromptTheme | undefined,
+  renderState: "submitted" | "cancelled",
+): void {
   // Move to top of editor (input lines + prompt header)
   const upCount = state.row + state.promptHeaderHeight;
   if (upCount > 0) w(state, `\x1b[${upCount}A`);
   w(state, "\r\x1b[J");
 
-  // Rebuild prompt header and line prefix in submitted state
-  const submittedHeader = buildPromptHeader(
-    state.prefixOption,
-    state.rawPrompt,
-    theme,
-    "submitted",
-  );
-  const submittedLinePrefix = buildStyledLinePrefix(state.linePrefixOption, theme, "submitted");
+  // Rebuild prompt header and line prefix for the target state
+  const header = buildPromptHeader(state.prefixOption, state.rawPrompt, theme, renderState);
+  const linePrefix = buildStyledLinePrefix(state.linePrefixOption, theme, renderState);
 
-  // Draw submitted prompt header
+  // Choose answer style based on state
+  const answerStyle =
+    renderState === "cancelled" ? (theme?.cancelAnswer ?? theme?.answer) : theme?.answer;
+
+  // Draw prompt header
   if (state.promptHeaderHeight > 0) {
-    w(state, submittedHeader);
+    w(state, header);
     w(state, "\n");
   }
 
-  // Draw input lines with submitted line prefix and answer style
+  // Draw input lines with line prefix and answer style
   for (let i = 0; i < state.lines.length; i++) {
     if (i > 0) w(state, "\n");
-    w(state, submittedLinePrefix + applyStyle(state.lines[i], theme?.answer));
+    w(state, linePrefix + applyStyle(state.lines[i], answerStyle));
   }
 
   // Reset state for cleanup

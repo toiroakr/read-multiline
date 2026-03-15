@@ -1759,6 +1759,98 @@ describe("readMultiline (TTY mode)", () => {
   });
 });
 
+// --- cancelRender option ---
+
+describe("cancelRender", () => {
+  let input: TTYInput & EventEmitter & { send: (data: string) => void };
+  let output: ReturnType<typeof createNullOutput>;
+  beforeEach(() => {
+    input = createTTYInput();
+    output = createNullOutput();
+  });
+
+  it("cancelRender default (clear): clears input on Ctrl+C", async () => {
+    const onCancel = vi.fn();
+    const promise = readMultiline({ input, output: output.stream, onCancel });
+    input.send("hello");
+    input.send(KEY.CTRL_C);
+    await promise;
+    const raw = output.chunks.join("");
+    // Should contain clear sequence
+    expect(raw).toContain("\r\x1b[J");
+  });
+
+  it("cancelRender preserve: re-renders with cancelled state on Ctrl+C", async () => {
+    const onCancel = vi.fn();
+    const promise = readMultiline({
+      input,
+      output: output.stream,
+      onCancel,
+      prefix: { pending: "? ", submitted: "✔ ", cancelled: "✖ " },
+      theme: { cancelRender: "preserve" },
+    });
+    input.send("hello");
+    input.send(KEY.CTRL_C);
+    await promise;
+    const raw = output.chunks.join("");
+    // Should contain the cancelled prefix
+    expect(raw).toContain("✖ ");
+    // Should end with newline (preserve mode)
+    expect(raw.endsWith("\n")).toBe(true);
+  });
+
+  it("cancelRender preserve: applies cancelAnswer style and keeps input visible", async () => {
+    const onCancel = vi.fn();
+    const promise = readMultiline({
+      input,
+      output: output.stream,
+      onCancel,
+      prefix: { pending: "> ", submitted: "> " },
+      theme: { cancelRender: "preserve", cancelAnswer: "dim" },
+    });
+    input.send("hello");
+    input.send(KEY.CTRL_C);
+    await promise;
+    const raw = output.chunks.join("");
+    // Input text should be present in the re-rendered output
+    expect(raw).toContain("hello");
+    // Should end with newline (preserve mode)
+    expect(raw.endsWith("\n")).toBe(true);
+  });
+
+  it("cancelRender preserve: falls back to pending prefix when cancelled not specified", async () => {
+    const onCancel = vi.fn();
+    const promise = readMultiline({
+      input,
+      output: output.stream,
+      onCancel,
+      prefix: { pending: "? ", submitted: "✔ " },
+      theme: { cancelRender: "preserve" },
+    });
+    input.send("hello");
+    input.send(KEY.CTRL_C);
+    await promise;
+    const raw = output.chunks.join("");
+    // Should fall back to pending prefix "? "
+    expect(raw).toContain("? ");
+  });
+
+  it("cancelRender preserve: rejects with CancelError when no onCancel", async () => {
+    const promise = readMultiline({
+      input,
+      output: output.stream,
+      prefix: { pending: "? ", submitted: "✔ ", cancelled: "✖ " },
+      theme: { cancelRender: "preserve" },
+    });
+    input.send("hello");
+    input.send(KEY.CTRL_C);
+    await expect(promise).rejects.toThrow(CancelError);
+    const raw = output.chunks.join("");
+    // Should still render with cancelled prefix
+    expect(raw).toContain("✖ ");
+  });
+});
+
 describe("readMultiline (pipe mode)", () => {
   it("reads all lines until EOF from pipe input", async () => {
     const input = Readable.from(["line1\nline2\nline3\n"]) as TTYInput;
