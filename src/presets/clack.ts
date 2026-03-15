@@ -1,15 +1,20 @@
+import { styleText } from "node:util";
+
 import type { SharedConfig } from "../types.js";
 
 /** Preset mimicking @clack/prompts visual style */
 export const clack: SharedConfig = {
-  prefix: { pending: "│\n◆  ", submitted: "│\n◇  " },
-  linePrefix: { pending: "│  ", submitted: "│  " },
-  footer: "└",
+  prefix: {
+    pending: styleText("cyan", "│") + "\n" + styleText("cyan", "◆") + "  ",
+    submitted: styleText("gray", "│") + "\n" + styleText("green", "◇") + "  ",
+  },
+  linePrefix: {
+    pending: styleText("cyan", "│") + "  ",
+    submitted: styleText("gray", "│") + "  ",
+  },
+  footer: styleText("cyan", "└"),
   theme: {
-    prefix: { pending: "cyan", submitted: "gray" },
-    linePrefix: { pending: "cyan", submitted: "gray" },
     answer: "dim",
-    footer: "cyan",
     submitRender: "preserve",
   },
 };
