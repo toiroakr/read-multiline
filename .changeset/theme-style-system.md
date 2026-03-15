@@ -11,5 +11,6 @@
 - バリデーションエラー時に prefix/linePrefix を動的に切り替える error visual state
 - `submitRender: 'preserve'` で送信後にスタイル付きで再描画
 - `cancelRender: 'preserve'` でキャンセル後にスタイル付きで再描画（clackプリセットで使用）
+- `onCancel` コールバックオプションの復活（設定時は `[value, null]` で返却）
 - `createPrompt()` ファクトリで共通設定の再利用
 - `presets.inquirer` / `presets.clack` プリセットの提供
