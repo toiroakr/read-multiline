@@ -2,11 +2,23 @@ import { styleText } from "node:util";
 
 import type { SharedConfig } from "../types.js";
 
-/** Preset mimicking @clack/prompts visual style */
+/**
+ * Preset mimicking @clack/prompts visual style.
+ *
+ * Pending (active):
+ *   │        ← gray guide bar
+ *   ◆  msg   ← cyan active symbol
+ *   │  input ← cyan bar
+ *   └        ← cyan bar end
+ *
+ * Submitted:
+ *   ◇  msg   ← green submit symbol
+ *   │  value ← gray bar + dim answer
+ */
 export const clack: SharedConfig = {
   prefix: {
-    pending: styleText("cyan", "│") + "\n" + styleText("cyan", "◆") + "  ",
-    submitted: styleText("gray", "│") + "\n" + styleText("green", "◇") + "  ",
+    pending: styleText("gray", "│") + "\n" + styleText("cyan", "◆") + "  ",
+    submitted: styleText("green", "◇") + "  ",
   },
   linePrefix: {
     pending: styleText("cyan", "│") + "  ",
