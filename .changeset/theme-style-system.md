@@ -7,7 +7,8 @@
 - `prompt` を `prefix` + `prompt` に分割し、prompt行を入力行から分離
 - `linePrompt` を `linePrefix` にリネーム（全入力行で統一使用）
 - `PromptTheme` によるスタイル設定（prefix, prompt, input, answer, error, success, footer）
-- `Stateful<T>` 型で pending/submitted 状態別の値をサポート
+- `Stateful<T>` 型で pending/submitted/cancelled 状態別の値をサポート
 - `submitRender: 'preserve'` で送信後にスタイル付きで再描画
+- `cancelRender: 'preserve'` でキャンセル後にスタイル付きで再描画（clackプリセットで使用）
 - `createPrompt()` ファクトリで共通設定の再利用
 - `presets.inquirer` / `presets.clack` プリセットの提供
