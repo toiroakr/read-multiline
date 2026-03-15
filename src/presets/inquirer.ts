@@ -9,5 +9,6 @@ export const inquirer: SharedConfig = {
     prompt: "bold",
     answer: "cyan",
     submitRender: "preserve",
+    cancelRender: "preserve",
   },
 };
