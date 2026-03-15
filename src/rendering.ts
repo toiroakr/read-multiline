@@ -172,7 +172,11 @@ export function clearScreen(state: EditorState): void {
 
   // Draw prompt header if present
   if (state.promptHeaderHeight > 0) {
-    w(state, state.promptHeader + "\x1b[K");
+    const headerLines = state.promptHeader.split("\n");
+    for (let i = 0; i < headerLines.length; i++) {
+      if (i > 0) w(state, "\n");
+      w(state, headerLines[i] + "\x1b[K");
+    }
     w(state, "\n");
   }
 

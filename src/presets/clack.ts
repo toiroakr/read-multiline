@@ -2,7 +2,7 @@ import type { SharedConfig } from "../types.js";
 
 /** Preset mimicking @clack/prompts visual style */
 export const clack: SharedConfig = {
-  prefix: { pending: "◆  ", submitted: "│\n◇  " },
+  prefix: { pending: "│\n◆  ", submitted: "│\n◇  " },
   linePrefix: { pending: "│  ", submitted: "│  " },
   footer: "└",
   theme: {

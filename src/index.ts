@@ -151,7 +151,7 @@ function readFromTTY(
       col: 0,
       output,
       promptHeader,
-      promptHeaderHeight: hasPromptHeader ? 1 : 0,
+      promptHeaderHeight: hasPromptHeader ? promptHeader.split("\n").length : 0,
       styledLinePrefix,
       linePrefixWidth,
       theme,
