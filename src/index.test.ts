@@ -1835,7 +1835,7 @@ describe("cancelRender", () => {
     expect(raw).toContain("? ");
   });
 
-  it("cancelRender preserve: rejects with CancelError when no onCancel", async () => {
+  it("cancelRender preserve: returns cancel error with cancelled prefix rendered", async () => {
     const promise = readMultiline({
       input,
       output: output.stream,
@@ -1844,7 +1844,9 @@ describe("cancelRender", () => {
     });
     input.send("hello");
     input.send(KEY.CTRL_C);
-    await expect(promise).rejects.toThrow(CancelError);
+    const [value, error] = await promise;
+    expect(value).toBeNull();
+    expect(error).toEqual({ kind: "cancel", message: "Input cancelled" });
     const raw = output.chunks.join("");
     // Should still render with cancelled prefix
     expect(raw).toContain("✖ ");
