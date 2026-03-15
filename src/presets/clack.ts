@@ -12,13 +12,14 @@ import type { SharedConfig } from "../types.js";
  *   └        ← cyan bar end
  *
  * Submitted:
+ *   │        ← gray guide bar
  *   ◇  msg   ← green submit symbol
  *   │  value ← gray bar + dim answer
  */
 export const clack: SharedConfig = {
   prefix: {
     pending: styleText("gray", "│") + "\n" + styleText("cyan", "◆") + "  ",
-    submitted: styleText("green", "◇") + "  ",
+    submitted: styleText("gray", "│") + "\n" + styleText("green", "◇") + "  ",
   },
   linePrefix: {
     pending: styleText("cyan", "│") + "  ",
