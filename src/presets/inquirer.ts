@@ -3,7 +3,7 @@ import type { SharedConfig } from "../types.js";
 /** Preset mimicking @inquirer/prompts visual style */
 export const inquirer: SharedConfig = {
   prefix: { pending: "? ", submitted: "✔ " },
-  linePrefix: { pending: "    ", submitted: "    " },
+  linePrefix: { pending: "  ", submitted: "  " },
   theme: {
     prefix: { pending: "blue", submitted: "green" },
     prompt: "bold",

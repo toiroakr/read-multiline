@@ -9,10 +9,8 @@ async function main() {
 
   const name = await p.text({ message: "What is your name?" });
   if (p.isCancel(name)) return p.cancel("Cancelled.");
-  console.log(`Name: ${name}`);
 
-  const bio = await ask({ prompt: "Tell me about yourself:" });
-  console.log(`Bio: ${bio}`);
+  await ask({ prompt: "Tell me about yourself:" });
 
   const color = await p.select({
     message: "Pick a color:",
@@ -23,10 +21,8 @@ async function main() {
     ],
   });
   if (p.isCancel(color)) return p.cancel("Cancelled.");
-  console.log(`Color: ${color}`);
 
-  const feedback = await ask({ prompt: "Any feedback?" });
-  console.log(`Feedback: ${feedback}`);
+  await ask({ prompt: "Any feedback?" });
 
   p.outro("Done!");
 }
