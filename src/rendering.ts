@@ -1,5 +1,5 @@
 import { stringWidth } from "./chars.js";
-import { applyStyle } from "./style.js";
+import { applyStyle, buildPromptHeader, buildStyledLinePrefix } from "./style.js";
 import type { EditorState, Snapshot } from "./types.js";
 
 /** Write text to the output stream (or buffer if batching) */
@@ -65,10 +65,17 @@ export function drawBelowEditor(state: EditorState): void {
   if (state.statusText) {
     w(state, "\r\n");
     linesBelow++;
-    if (state.statusColor === "red") w(state, "\x1b[31m");
-    else if (state.statusColor === "green") w(state, "\x1b[32m");
-    w(state, state.statusText);
-    if (state.statusColor) w(state, "\x1b[0m");
+    const errorStyle = state.statusColor === "red" ? state.theme?.error : undefined;
+    const successStyle = state.statusColor === "green" ? state.theme?.success : undefined;
+    const themeStyle = errorStyle ?? successStyle;
+    if (themeStyle) {
+      w(state, applyStyle(state.statusText, themeStyle));
+    } else {
+      if (state.statusColor === "red") w(state, "\x1b[31m");
+      else if (state.statusColor === "green") w(state, "\x1b[32m");
+      w(state, state.statusText);
+      if (state.statusColor) w(state, "\x1b[0m");
+    }
     w(state, "\x1b[K");
   }
 
@@ -129,6 +136,39 @@ export function clearBelowEditor(state: EditorState): void {
   state.statusText = "";
   state.statusColor = "";
   state.footerText = "";
+}
+
+/** Update the visual state (prefix/linePrefix) without redrawing */
+export function setVisualState(state: EditorState, visualState: "pending" | "error"): void {
+  if (state.visualState === visualState) return;
+  state.visualState = visualState;
+  state.promptHeader = buildPromptHeader(
+    state.prefixOption,
+    state.rawPrompt,
+    state.theme,
+    visualState,
+  );
+  state.styledLinePrefix = buildStyledLinePrefix(state.linePrefixOption, state.theme, visualState);
+}
+
+/** Set status and update visual state, minimizing redraws */
+export function setStatusWithVisualState(
+  state: EditorState,
+  text: string,
+  color: "red" | "green" | "",
+  visualState: "pending" | "error",
+): void {
+  const visualChanged = state.visualState !== visualState;
+  setVisualState(state, visualState);
+  if (visualChanged) {
+    // Full redraw since prefix/linePrefix changed
+    if (state.statusText || state.footerText) clearBelowAndReturn(state);
+    state.statusText = text;
+    state.statusColor = color;
+    clearScreen(state);
+  } else {
+    setStatus(state, text, color);
+  }
 }
 
 /** Redraw all lines from fromRow onwards, placing cursor at (targetRow, targetCol) */

@@ -4,7 +4,14 @@ import { buildHelpFooter, detectKittyProtocol } from "./footer.js";
 import { appendHistory, loadHistory, saveHistory } from "./history.js";
 import { buildKeyMap, onData } from "./input.js";
 import * as presets from "./presets/index.js";
-import { clearBelowEditor, clearScreen, setFooter, setStatus, tCol, w } from "./rendering.js";
+import {
+  clearBelowEditor,
+  clearScreen,
+  setFooter,
+  setStatusWithVisualState,
+  tCol,
+  w,
+} from "./rendering.js";
 import { applyStyle, buildPromptHeader, buildStyledLinePrefix, resolveStateful } from "./style.js";
 import type {
   EditorState,
@@ -154,6 +161,7 @@ function readFromTTY(
       promptHeaderHeight: hasPromptHeader ? promptHeader.split("\n").length : 0,
       styledLinePrefix,
       linePrefixWidth,
+      visualState: "pending" as const,
       theme,
       prefixOption,
       linePrefixOption: resolvedLinePrefixOption,
@@ -233,7 +241,7 @@ function readFromTTY(
         const error = validate(state.lines.join("\n"));
         if (error) {
           state.validationActive = true;
-          setStatus(state, error, "red");
+          setStatusWithVisualState(state, error, "red", "error");
           return;
         }
       }

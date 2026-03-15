@@ -2,14 +2,17 @@ import { styleText } from "node:util";
 
 import type { PromptTheme, Stateful, StyleTextFormat } from "./types.js";
 
+/** Valid visual states for resolving Stateful values */
+export type VisualState = "pending" | "submitted" | "cancelled" | "error";
+
 /** Resolve a Stateful value to its concrete value for the given state */
-export function resolveStateful<T>(
-  value: Stateful<T>,
-  state: "pending" | "submitted" | "cancelled",
-): T {
+export function resolveStateful<T>(value: Stateful<T>, state: VisualState): T {
   if (value !== null && typeof value === "object" && "pending" in value && "submitted" in value) {
     if (state === "cancelled") {
       return (value as { pending: T; submitted: T; cancelled?: T }).cancelled ?? value.pending;
+    }
+    if (state === "error") {
+      return (value as { pending: T; submitted: T; error?: T }).error ?? value.pending;
     }
     return value[state];
   }
@@ -27,7 +30,7 @@ export function buildPromptHeader(
   prefixOption: Stateful<string>,
   prompt: string,
   theme: PromptTheme | undefined,
-  state: "pending" | "submitted" | "cancelled",
+  state: VisualState,
 ): string {
   const prefix = resolveStateful(prefixOption, state);
   const styledPrefix = applyStyle(
@@ -42,7 +45,7 @@ export function buildPromptHeader(
 export function buildStyledLinePrefix(
   linePrefixOption: Stateful<string>,
   theme: PromptTheme | undefined,
-  state: "pending" | "submitted" | "cancelled",
+  state: VisualState,
 ): string {
   const linePrefix = resolveStateful(linePrefixOption, state);
   const style = theme?.linePrefix ? resolveStateful(theme.linePrefix, state) : undefined;

@@ -2,8 +2,8 @@ import type { styleText } from "node:util";
 
 export type StyleTextFormat = Parameters<typeof styleText>[0];
 
-/** A value that can vary between pending (editing), submitted, and cancelled states */
-export type Stateful<T> = T | { pending: T; submitted: T; cancelled?: T };
+/** A value that can vary between pending (editing), submitted, cancelled, and error states */
+export type Stateful<T> = T | { pending: T; submitted: T; cancelled?: T; error?: T };
 
 /** Theme configuration for styling prompt elements */
 export interface PromptTheme {
@@ -214,13 +214,16 @@ export interface EditorState {
   // Output
   output: NodeJS.WritableStream;
 
-  // Prompt header (readonly after init)
+  // Prompt header (rebuilt on visual state change)
   promptHeader: string;
   promptHeaderHeight: number;
 
-  // Line prefix for all input lines (readonly after init)
+  // Line prefix for all input lines (rebuilt on visual state change)
   styledLinePrefix: string;
   linePrefixWidth: number;
+
+  // Current visual state for prefix/linePrefix rendering
+  visualState: "pending" | "error";
 
   // Theme & raw values for submitted-state re-rendering
   theme: PromptTheme | undefined;

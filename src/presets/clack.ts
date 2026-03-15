@@ -11,6 +11,12 @@ import type { SharedConfig } from "../types.js";
  *   │  input ← cyan bar
  *   └        ← cyan bar end
  *
+ * Error (validation failed):
+ *   │        ← gray guide bar
+ *   ▲  msg   ← yellow warning symbol
+ *   │  input ← yellow bar
+ *   └        ← yellow bar end + yellow error message
+ *
  * Submitted:
  *   │        ← gray guide bar
  *   ◇  msg   ← green submit symbol
@@ -26,16 +32,19 @@ export const clack: SharedConfig = {
     pending: styleText("gray", "│") + "\n" + styleText("cyan", "◆") + "  ",
     submitted: styleText("gray", "│") + "\n" + styleText("green", "◇") + "  ",
     cancelled: styleText("gray", "│") + "\n" + styleText("red", "■") + "  ",
+    error: styleText("gray", "│") + "\n" + styleText("yellow", "▲") + "  ",
   },
   linePrefix: {
     pending: styleText("cyan", "│") + "  ",
     submitted: styleText("gray", "│") + "  ",
     cancelled: styleText("gray", "│") + "  ",
+    error: styleText("yellow", "│") + "  ",
   },
   footer: styleText("cyan", "└"),
   theme: {
     answer: "dim",
     cancelAnswer: ["strikethrough", "dim"],
+    error: "yellow",
     submitRender: "preserve",
     cancelRender: "preserve",
   },

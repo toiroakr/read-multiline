@@ -12,7 +12,7 @@ import {
   redrawAfterDelete,
   redrawFrom,
   restoreSnapshot,
-  setStatus,
+  setStatusWithVisualState,
   w,
 } from "./rendering.js";
 import type { EditorState, Snapshot } from "./types.js";
@@ -67,9 +67,9 @@ function scheduleValidation(state: EditorState): void {
     state.validateTimer = null;
     const error = state.validate!(state.lines.join("\n"));
     if (error) {
-      setStatus(state, error, "red");
+      setStatusWithVisualState(state, error, "red", "error");
     } else {
-      setStatus(state, "OK", "green");
+      setStatusWithVisualState(state, "OK", "green", "pending");
     }
   }, state.validateDebounceMs);
 }
@@ -79,13 +79,16 @@ export function onContentChanged(state: EditorState): void {
   if (state.maxLength != null) {
     const len = contentLength(state.lines);
     if (len >= state.maxLength) {
-      setStatus(state, `Maximum ${state.maxLength} characters`, "red");
+      setStatusWithVisualState(state, `Maximum ${state.maxLength} characters`, "red", "error");
       return;
     }
   }
 
   if (state.validationActive) {
     scheduleValidation(state);
+  } else if (state.visualState === "error") {
+    // Revert to pending when limit error clears and no active validation
+    setStatusWithVisualState(state, "", "", "pending");
   } else {
     clearStatus(state);
   }
@@ -97,7 +100,7 @@ function canInsertChar(state: EditorState, charCount: number = 1): boolean {
   if (state.maxLength != null) {
     const len = contentLength(state.lines);
     if (len + charCount > state.maxLength) {
-      setStatus(state, `Maximum ${state.maxLength} characters`, "red");
+      setStatusWithVisualState(state, `Maximum ${state.maxLength} characters`, "red", "error");
       return false;
     }
   }
@@ -106,13 +109,13 @@ function canInsertChar(state: EditorState, charCount: number = 1): boolean {
 
 function canInsertNewline(state: EditorState): boolean {
   if (state.maxLines != null && state.lines.length >= state.maxLines) {
-    setStatus(state, `Maximum ${state.maxLines} lines`, "red");
+    setStatusWithVisualState(state, `Maximum ${state.maxLines} lines`, "red", "error");
     return false;
   }
   if (state.maxLength != null) {
     const len = contentLength(state.lines);
     if (len + 1 > state.maxLength) {
-      setStatus(state, `Maximum ${state.maxLength} characters`, "red");
+      setStatusWithVisualState(state, `Maximum ${state.maxLength} characters`, "red", "error");
       return false;
     }
   }
