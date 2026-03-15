@@ -1851,6 +1851,44 @@ describe("cancelRender", () => {
     // Should still render with cancelled prefix
     expect(raw).toContain("✖ ");
   });
+
+  it("onCancel: calls callback and resolves with current input", async () => {
+    let cancelled = false;
+    const promise = readMultiline({
+      input,
+      output: output.stream,
+      onCancel: () => {
+        cancelled = true;
+      },
+    });
+    input.send("hello");
+    input.send(KEY.CTRL_C);
+    const [value, error] = await promise;
+    expect(cancelled).toBe(true);
+    expect(value).toBe("hello");
+    expect(error).toBeNull();
+  });
+
+  it("onCancel with cancelRender preserve: renders cancelled state and resolves with value", async () => {
+    let cancelled = false;
+    const promise = readMultiline({
+      input,
+      output: output.stream,
+      prefix: { pending: "? ", submitted: "✔ ", cancelled: "✖ " },
+      theme: { cancelRender: "preserve" },
+      onCancel: () => {
+        cancelled = true;
+      },
+    });
+    input.send("hello");
+    input.send(KEY.CTRL_C);
+    const [value, error] = await promise;
+    expect(cancelled).toBe(true);
+    expect(value).toBe("hello");
+    expect(error).toBeNull();
+    const raw = output.chunks.join("");
+    expect(raw).toContain("✖ ");
+  });
 });
 
 describe("readMultiline (pipe mode)", () => {

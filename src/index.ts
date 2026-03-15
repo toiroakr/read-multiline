@@ -304,7 +304,12 @@ function readFromTTY(
       if (cancelRender !== "clear") {
         w(state, "\n");
       }
-      resolve([null, { kind: "cancel", message: "Input cancelled" }]);
+      if (options.onCancel) {
+        options.onCancel();
+        resolve([state.lines.join("\n"), null]);
+      } else {
+        resolve([null, { kind: "cancel", message: "Input cancelled" }]);
+      }
     }
 
     // Build key map

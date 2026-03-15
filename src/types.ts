@@ -137,6 +137,12 @@ export interface ReadMultilineOptions {
   clearAfterSubmit?: boolean;
 
   /**
+   * Callback invoked when the user cancels input with Ctrl+C.
+   * When provided, the promise resolves with [value, null] (current input) instead of [null, CancelError].
+   */
+  onCancel?: () => void;
+
+  /**
    * Auto-generated help footer showing key bindings.
    * Displayed below the custom footer (if any), after kitty protocol detection completes.
    * - true: show with default options
