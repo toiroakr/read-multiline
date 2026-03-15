@@ -254,6 +254,9 @@ function readFromTTY(
       }
 
       cleanup();
+      if (submitRender !== "clear") {
+        w(state, "\n");
+      }
       if (historyConfig?.filePath) {
         const maxEntries = historyConfig.maxEntries ?? 100;
         const updated = appendHistory(state.history, result, maxEntries);

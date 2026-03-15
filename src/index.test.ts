@@ -1737,8 +1737,8 @@ describe("readMultiline (TTY mode)", () => {
     input.send(KEY.ENTER);
     await promise;
     const raw = output.chunks.join("");
-    // Input remains visible (no trailing newline — caller controls the next line)
-    expect(raw.endsWith("\n")).toBe(false);
+    // Should end with a newline (input remains visible)
+    expect(raw.endsWith("\n")).toBe(true);
   });
 
   it("clearAfterSubmit=true: clears multi-line input", async () => {

@@ -10,7 +10,10 @@ async function main() {
   const name = await p.text({ message: "What is your name?" });
   if (p.isCancel(name)) return p.cancel("Cancelled.");
 
-  await ask({ prompt: "Tell me about yourself:" });
+  const bio = await p.text({ message: "Tell me about yourself:" });
+  if (p.isCancel(bio)) return p.cancel("Cancelled.");
+
+  await ask({ prompt: "Any multiline input:" });
 
   const color = await p.select({
     message: "Pick a color:",
