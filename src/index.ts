@@ -160,7 +160,7 @@ function readFromTTY(
       rawPrompt,
       statusText: "",
       statusColor: "",
-      footerText: footer ?? "",
+      footerText: applyStyle(footer ?? "", theme?.footer),
       rebuildFooter: null,
       history: [...historyEntries],
       historyIndex: historyEntries.length,
@@ -309,10 +309,11 @@ function readFromTTY(
     }
 
     if (footer) {
+      const styledFooter = applyStyle(footer, theme?.footer);
       const endRow = state.lines.length - 1;
       const dr = endRow - state.row;
       if (dr > 0) w(state, `\x1b[${dr}B`);
-      const footerLines = footer.split("\n");
+      const footerLines = styledFooter.split("\n");
       for (const line of footerLines) {
         w(state, "\r\n" + line + "\x1b[K");
       }
@@ -330,7 +331,7 @@ function readFromTTY(
     // Must run after raw mode is enabled so the terminal can respond to the query
     if (helpFooter) {
       const helpOpts = typeof helpFooter === "object" ? helpFooter : {};
-      const customFooter = footer ?? "";
+      const customFooter = applyStyle(footer ?? "", theme?.footer);
 
       const buildFooterForColumns = (cols: number): string => {
         const helpText = buildHelpFooter({
