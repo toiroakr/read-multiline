@@ -1,8 +1,20 @@
 import * as p from "@clack/prompts";
 
-import { createPrompt, presets } from "../src/index.js";
+import { CancelError, createPrompt, presets } from "../src/index.js";
 
 const ask = createPrompt(presets.clack);
+
+/** Wrapper that calls p.cancel() on CancelError, matching native clack cancel flow */
+async function clackAsk(options: Parameters<typeof ask>[0]): Promise<string | symbol> {
+  try {
+    return await ask(options);
+  } catch (e) {
+    if (e instanceof CancelError) {
+      return Symbol.for("cancel");
+    }
+    throw e;
+  }
+}
 
 async function main() {
   p.intro("Welcome!");
@@ -13,7 +25,8 @@ async function main() {
   const bio = await p.text({ message: "Tell me about yourself:" });
   if (p.isCancel(bio)) return p.cancel("Cancelled.");
 
-  await ask({ prompt: "Any multiline input:" });
+  const input1 = await clackAsk({ prompt: "Any multiline input:" });
+  if (p.isCancel(input1)) return p.cancel("Cancelled.");
 
   const color = await p.select({
     message: "Pick a color:",
@@ -25,7 +38,8 @@ async function main() {
   });
   if (p.isCancel(color)) return p.cancel("Cancelled.");
 
-  await ask({ prompt: "Any feedback?" });
+  const input2 = await clackAsk({ prompt: "Any feedback?" });
+  if (p.isCancel(input2)) return p.cancel("Cancelled.");
 
   p.outro("Done!");
 }
