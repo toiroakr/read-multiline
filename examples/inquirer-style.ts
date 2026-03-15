@@ -21,4 +21,4 @@ async function main() {
   await ask({ prompt: "Any feedback?" });
 }
 
-main().catch(console.error);
+main().catch(() => {});

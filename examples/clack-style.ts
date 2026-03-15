@@ -27,4 +27,4 @@ async function main() {
   p.outro("Done!");
 }
 
-main().catch(console.error);
+main().catch(() => {});
