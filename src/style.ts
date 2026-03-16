@@ -41,19 +41,9 @@ export function buildPromptHeader(
   return styledPrefix + styledPrompt;
 }
 
-/** Compute header height: non-zero if any state could produce a header, based on built header content */
-export function computeHeaderHeight(
-  prefixOption: Stateful<string>,
-  prompt: string,
-  builtHeader: string,
-): number {
-  // Header is present if there's any prefix content (in any state) or a prompt message
-  const hasHeader =
-    prompt !== "" ||
-    (typeof prefixOption === "string"
-      ? prefixOption !== ""
-      : Object.values(prefixOption).some((v) => typeof v === "string" && v !== ""));
-  if (!hasHeader) return 0;
+/** Compute header height from the actually-built header string for the current state */
+export function computeHeaderHeight(builtHeader: string): number {
+  if (builtHeader === "") return 0;
   return builtHeader.split("\n").length;
 }
 

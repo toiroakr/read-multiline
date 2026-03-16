@@ -147,7 +147,7 @@ function readFromTTY(
 
     // Build pending-state prompt header and line prefix
     const promptHeader = buildPromptHeader(prefixOption, rawPrompt, theme, "pending");
-    const promptHeaderHeight = computeHeaderHeight(prefixOption, rawPrompt, promptHeader);
+    const promptHeaderHeight = computeHeaderHeight(promptHeader);
     const styledLinePrefix = buildStyledLinePrefix(resolvedLinePrefixOption, theme, "pending");
     const rawLinePrefix = resolveStateful(resolvedLinePrefixOption, "pending");
     const linePrefixWidth = stringWidth(rawLinePrefix);
@@ -428,7 +428,7 @@ function renderStateChange(
 
   // Rebuild prompt header and line prefix for the target state
   const header = buildPromptHeader(state.prefixOption, state.rawPrompt, theme, renderState);
-  const headerHeight = computeHeaderHeight(state.prefixOption, state.rawPrompt, header);
+  const headerHeight = computeHeaderHeight(header);
   const linePrefix = buildStyledLinePrefix(state.linePrefixOption, theme, renderState);
 
   // Choose answer style based on state

@@ -154,11 +154,7 @@ export function setVisualState(state: EditorState, visualState: "pending" | "err
     state.theme,
     visualState,
   );
-  state.promptHeaderHeight = computeHeaderHeight(
-    state.prefixOption,
-    state.rawPrompt,
-    state.promptHeader,
-  );
+  state.promptHeaderHeight = computeHeaderHeight(state.promptHeader);
   state.styledLinePrefix = buildStyledLinePrefix(state.linePrefixOption, state.theme, visualState);
   const rawLinePrefix = resolveStateful(state.linePrefixOption, visualState);
   state.linePrefixWidth = stringWidth(rawLinePrefix);
@@ -172,13 +168,39 @@ export function setStatusWithVisualState(
   visualState: "pending" | "error",
 ): void {
   const visualChanged = state.visualState !== visualState;
-  setVisualState(state, visualState);
   if (visualChanged) {
+    // Capture old header height before updating, for correct cursor rewind
+    const oldHeaderHeight = state.promptHeaderHeight;
+    setVisualState(state, visualState);
     // Full redraw since prefix/linePrefix changed
     if (state.statusText || state.footerText) clearBelowAndReturn(state);
     state.statusText = text;
     state.statusColor = color;
-    clearScreen(state);
+    // Use old header height for cursor rewind, then redraw with new state
+    beginBatch(state);
+    const upCount = state.row + oldHeaderHeight;
+    if (upCount > 0) w(state, `\x1b[${upCount}A`);
+    w(state, "\r");
+    // Draw new prompt header if present
+    if (state.promptHeaderHeight > 0) {
+      const headerLines = state.promptHeader.split("\n");
+      for (let i = 0; i < headerLines.length; i++) {
+        if (i > 0) w(state, "\n");
+        w(state, headerLines[i] + "\x1b[K");
+      }
+      w(state, "\n");
+    }
+    // Draw all input lines with linePrefix
+    w(state, state.styledLinePrefix + styledInput(state, state.lines[0]) + "\x1b[K");
+    for (let i = 1; i < state.lines.length; i++) {
+      w(state, "\n" + state.styledLinePrefix + styledInput(state, state.lines[i]) + "\x1b[K");
+    }
+    w(state, "\x1b[J");
+    const endRow = state.lines.length - 1;
+    if (endRow > state.row) w(state, `\x1b[${endRow - state.row}A`);
+    w(state, `\x1b[${tCol(state, state.row, state.col)}G`);
+    drawBelowEditor(state);
+    flushBatch(state);
   } else {
     setStatus(state, text, color);
   }

@@ -57,12 +57,16 @@ export interface EOFError {
 /** Union of errors that readMultiline can return. */
 export type ReadMultilineError = CancelError | EOFError;
 
-/** Result tuple: [value, null] on success, [null, error] on failure, [value, error] on cancel with onError. */
+/**
+ * Result tuple:
+ * - `[string, null]` on success
+ * - `[null, ReadMultilineError]` on cancel/EOF without `onError`
+ * - `[string, ReadMultilineError | unknown]` on cancel/EOF with `onError` (callback return overrides error)
+ */
 export type ReadMultilineResult =
   | [string, null]
   | [null, ReadMultilineError]
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  | [string, any];
+  | [string, ReadMultilineError | unknown];
 
 export interface ReadMultilineOptions {
   /** Prefix displayed before the prompt message (default: "> "). Can be state-dependent. */

@@ -77,8 +77,9 @@ const [input] = await askClack({ prompt: "Enter some text:" });
 Returns a `ReadMultilineResult` tuple:
 
 - `[string, null]` on success (submitted input)
-- `[null, { kind: "cancel" }]` on Ctrl+C (unless `onCancel` is set)
-- `[null, { kind: "eof" }]` on Ctrl+D with empty input
+- `[null, { kind: "cancel" }]` on Ctrl+C (unless `onError` is set)
+- `[null, { kind: "eof" }]` on Ctrl+D with empty input (unless `onError` is set)
+- `[string, error]` when `onError` is set — receives current input and the error
 
 | Option                   | Type                                             | Default          | Description                                                                                                          |
 | ------------------------ | ------------------------------------------------ | ---------------- | -------------------------------------------------------------------------------------------------------------------- |
