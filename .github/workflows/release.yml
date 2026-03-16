@@ -44,6 +44,7 @@ jobs:
           publish: pnpm changeset publish
           title: "chore: release"
           commit: "chore: release"
+          commitMode: "github-api"
           createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
