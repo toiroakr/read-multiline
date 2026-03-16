@@ -2,15 +2,15 @@
 "@toiroakr/read-multiline": minor
 ---
 
-テーマ・スタイルシステムの導入、prefix/prompt分割、プリセット提供
+Add theme/style system, prefix/prompt split, and presets
 
-- `prompt` を `prefix` + `prompt` に分割し、prompt行を入力行から分離
-- `linePrompt` を `linePrefix` にリネーム（全入力行で統一使用）
-- `PromptTheme` によるスタイル設定（prefix, prompt, input, answer, error, success, footer）
-- `Stateful<T>` 型で pending/submitted/cancelled/error 状態別の値をサポート
-- バリデーションエラー時に prefix/linePrefix を動的に切り替える error visual state
-- `submitRender: 'preserve'` で送信後にスタイル付きで再描画
-- `cancelRender: 'preserve'` でキャンセル後にスタイル付きで再描画（clackプリセットで使用）
-- `onError` コールバック（cancel/EOF時に `[value, error]` で返却、戻り値でerror上書き可）
-- `createPrompt()` ファクトリで共通設定の再利用
-- `presets.inquirer` / `presets.clack` プリセットの提供
+- Split `prompt` into `prefix` + `prompt`, separating the prompt header line from input lines
+- Rename `linePrompt` to `linePrefix` (unified across all input lines)
+- Add `PromptTheme` for styling (prefix, prompt, input, answer, error, success, footer)
+- Add `Stateful<T>` type for pending/submitted/cancelled/error state-dependent values
+- Add error visual state: dynamically switch prefix/linePrefix on validation failure
+- Add `submitRender: 'preserve'` to re-render with submitted-state styles
+- Add `cancelRender: 'preserve'` to re-render with cancelled-state styles
+- Add `onError` callback (resolves `[value, error]` on cancel/EOF, return value overrides error)
+- Add `createPrompt()` factory for reusable shared configuration
+- Add `presets.inquirer` / `presets.clack` presets
