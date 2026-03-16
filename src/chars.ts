@@ -20,10 +20,15 @@ export function charWidth(code: number): number {
   return 1;
 }
 
-/** Returns the terminal display width of a string */
+/** Returns the terminal display width of a string, ignoring ANSI escape sequences */
 export function stringWidth(str: string): number {
+  // Strip ANSI escape sequences: CSI (final byte @-~), OSC (BEL or ST terminated), simple ESC
+  const stripped = str.replace(
+    /\x1b\[[0-9;]*[@-~]|\x1b\](?:[^\x07\x1b]*(?:\x07|\x1b\\))|\x1b[^[\]]/g,
+    "",
+  );
   let width = 0;
-  for (const ch of str) {
+  for (const ch of stripped) {
     width += charWidth(ch.codePointAt(0)!);
   }
   return width;

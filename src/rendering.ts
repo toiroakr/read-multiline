@@ -1,4 +1,11 @@
 import { stringWidth } from "./chars.js";
+import {
+  applyStyle,
+  buildPromptHeader,
+  buildStyledLinePrefix,
+  computeHeaderHeight,
+  resolveStateful,
+} from "./style.js";
 import type { EditorState, Snapshot } from "./types.js";
 
 /** Write text to the output stream (or buffer if batching) */
@@ -25,14 +32,19 @@ export function flushBatch(state: EditorState): void {
   }
 }
 
-/** Get the prompt display width for the given row */
-export function pW(state: EditorState, r: number): number {
-  return r === 0 ? state.promptWidth : state.linePromptWidth;
+/** Get the line prefix display width (same for all input rows) */
+export function pW(state: EditorState): number {
+  return state.linePrefixWidth;
 }
 
 /** Get 1-based terminal column from line start to code unit index, accounting for display width */
 export function tCol(state: EditorState, r: number, c: number): number {
-  return pW(state, r) + stringWidth(state.lines[r].slice(0, c)) + 1;
+  return pW(state) + stringWidth(state.lines[r].slice(0, c)) + 1;
+}
+
+/** Style input text according to the theme */
+export function styledInput(state: EditorState, text: string): string {
+  return applyStyle(text, state.theme?.input);
 }
 
 /** Move terminal cursor from current position to (newRow, newCol) */
@@ -59,10 +71,17 @@ export function drawBelowEditor(state: EditorState): void {
   if (state.statusText) {
     w(state, "\r\n");
     linesBelow++;
-    if (state.statusColor === "red") w(state, "\x1b[31m");
-    else if (state.statusColor === "green") w(state, "\x1b[32m");
-    w(state, state.statusText);
-    if (state.statusColor) w(state, "\x1b[0m");
+    const errorStyle = state.statusColor === "red" ? state.theme?.error : undefined;
+    const successStyle = state.statusColor === "green" ? state.theme?.success : undefined;
+    const themeStyle = errorStyle ?? successStyle;
+    if (themeStyle) {
+      w(state, applyStyle(state.statusText, themeStyle));
+    } else {
+      if (state.statusColor === "red") w(state, "\x1b[31m");
+      else if (state.statusColor === "green") w(state, "\x1b[32m");
+      w(state, state.statusText);
+      if (state.statusColor) w(state, "\x1b[0m");
+    }
     w(state, "\x1b[K");
   }
 
@@ -125,6 +144,46 @@ export function clearBelowEditor(state: EditorState): void {
   state.footerText = "";
 }
 
+/** Update the visual state (prefix/linePrefix) and recompute derived fields */
+export function setVisualState(state: EditorState, visualState: "pending" | "error"): void {
+  if (state.visualState === visualState) return;
+  state.visualState = visualState;
+  state.promptHeader = buildPromptHeader(
+    state.prefixOption,
+    state.rawPrompt,
+    state.theme,
+    visualState,
+  );
+  state.promptHeaderHeight = computeHeaderHeight(
+    state.prefixOption,
+    state.rawPrompt,
+    state.promptHeader,
+  );
+  state.styledLinePrefix = buildStyledLinePrefix(state.linePrefixOption, state.theme, visualState);
+  const rawLinePrefix = resolveStateful(state.linePrefixOption, visualState);
+  state.linePrefixWidth = stringWidth(rawLinePrefix);
+}
+
+/** Set status and update visual state, minimizing redraws */
+export function setStatusWithVisualState(
+  state: EditorState,
+  text: string,
+  color: "red" | "green" | "",
+  visualState: "pending" | "error",
+): void {
+  const visualChanged = state.visualState !== visualState;
+  setVisualState(state, visualState);
+  if (visualChanged) {
+    // Full redraw since prefix/linePrefix changed
+    if (state.statusText || state.footerText) clearBelowAndReturn(state);
+    state.statusText = text;
+    state.statusColor = color;
+    clearScreen(state);
+  } else {
+    setStatus(state, text, color);
+  }
+}
+
 /** Redraw all lines from fromRow onwards, placing cursor at (targetRow, targetCol) */
 export function redrawFrom(
   state: EditorState,
@@ -140,9 +199,9 @@ export function redrawFrom(
 
   w(state, "\x1b[J");
 
-  w(state, state.lines[fromRow]);
+  w(state, styledInput(state, state.lines[fromRow]));
   for (let i = fromRow + 1; i < state.lines.length; i++) {
-    w(state, "\n" + state.linePrompt + state.lines[i]);
+    w(state, "\n" + state.styledLinePrefix + styledInput(state, state.lines[i]));
   }
 
   const endRow = state.lines.length - 1;
@@ -159,12 +218,25 @@ export function redrawFrom(
 /** Clear screen and redraw all content with in-place rendering to reduce flicker */
 export function clearScreen(state: EditorState): void {
   beginBatch(state);
-  // Move to top-left and overwrite content in-place instead of clearing first
-  if (state.row > 0) w(state, `\x1b[${state.row}A`);
+  // Move to top of editor (input lines + prompt header)
+  const upCount = state.row + state.promptHeaderHeight;
+  if (upCount > 0) w(state, `\x1b[${upCount}A`);
   w(state, "\r");
-  w(state, state.prompt + state.lines[0] + "\x1b[K");
+
+  // Draw prompt header if present
+  if (state.promptHeaderHeight > 0) {
+    const headerLines = state.promptHeader.split("\n");
+    for (let i = 0; i < headerLines.length; i++) {
+      if (i > 0) w(state, "\n");
+      w(state, headerLines[i] + "\x1b[K");
+    }
+    w(state, "\n");
+  }
+
+  // Draw all input lines with linePrefix
+  w(state, state.styledLinePrefix + styledInput(state, state.lines[0]) + "\x1b[K");
   for (let i = 1; i < state.lines.length; i++) {
-    w(state, "\n" + state.linePrompt + state.lines[i] + "\x1b[K");
+    w(state, "\n" + state.styledLinePrefix + styledInput(state, state.lines[i]) + "\x1b[K");
   }
   // Clear any remaining lines below
   w(state, "\x1b[J");
@@ -182,11 +254,11 @@ export function restoreSnapshot(state: EditorState, snap: Snapshot): void {
   state.lines.push(...snap.lines);
   if (state.row > 0) w(state, `\x1b[${state.row}A`);
   w(state, "\r");
-  w(state, `\x1b[${pW(state, 0) + 1}G`);
+  w(state, `\x1b[${pW(state) + 1}G`);
   w(state, "\x1b[J");
-  w(state, state.lines[0]);
+  w(state, styledInput(state, state.lines[0]));
   for (let i = 1; i < state.lines.length; i++) {
-    w(state, "\n" + state.linePrompt + state.lines[i]);
+    w(state, "\n" + state.styledLinePrefix + styledInput(state, state.lines[i]));
   }
   const endRow = state.lines.length - 1;
   if (endRow > snap.row) w(state, `\x1b[${endRow - snap.row}A`);
@@ -201,5 +273,8 @@ export function restoreSnapshot(state: EditorState, snap: Snapshot): void {
 export function redrawAfterDelete(state: EditorState, deletedWidth: number): void {
   const rest = state.lines[state.row].slice(state.col);
   const restW = stringWidth(rest);
-  w(state, `\x1b[${deletedWidth}D${rest}${" ".repeat(deletedWidth)}\x1b[${restW + deletedWidth}D`);
+  w(
+    state,
+    `\x1b[${deletedWidth}D${styledInput(state, rest)}${" ".repeat(deletedWidth)}\x1b[${restW + deletedWidth}D`,
+  );
 }

@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import { Readable } from "node:stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { readMultiline, type TTYInput } from "./index.js";
+import { createPrompt, readMultiline, type TTYInput } from "./index.js";
 
 // Dummy output stream that records writes
 function createNullOutput() {
@@ -85,14 +85,14 @@ describe("readMultiline (TTY mode)", () => {
   // --- Basic operations ---
 
   it("submits input on Enter", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello");
     input.send(KEY.ENTER);
     expect(await promise).toEqual(["hello", null]);
   });
 
   it("inserts newline on Shift+Enter and submits on Enter", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("line1");
     input.send(KEY.SHIFT_ENTER);
     input.send("line2");
@@ -101,7 +101,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("handles multiple Shift+Enter for multi-line input", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("a");
     input.send(KEY.SHIFT_ENTER);
     input.send("b");
@@ -112,7 +112,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("returns CancelError on Ctrl+C", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("partial");
     input.send(KEY.CTRL_C);
     const [value, error] = await promise;
@@ -121,7 +121,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("returns CancelError on Ctrl+C with no input", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send(KEY.CTRL_C);
     const [value, error] = await promise;
     expect(value).toBeNull();
@@ -129,7 +129,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("deletes character at cursor on Ctrl+D when input exists", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("text");
     input.send(KEY.LEFT);
     input.send(KEY.LEFT);
@@ -139,7 +139,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("returns EOFError on Ctrl+D when input is empty", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send(KEY.CTRL_D);
     const [value, error] = await promise;
     expect(value).toBeNull();
@@ -147,13 +147,13 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("returns empty string on Enter with no input", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send(KEY.ENTER);
     expect(await promise).toEqual(["", null]);
   });
 
   it("submits on kitty protocol Enter (CSI 13u)", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("test");
     input.send(KEY.KITTY_ENTER);
     expect(await promise).toEqual(["test", null]);
@@ -162,7 +162,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Backspace ---
 
   it("deletes the last character on Backspace", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.BACKSPACE);
     input.send(KEY.ENTER);
@@ -170,7 +170,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("merges lines on Backspace at line start", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("line1");
     input.send(KEY.SHIFT_ENTER);
     input.send(KEY.BACKSPACE);
@@ -181,7 +181,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Ctrl+W (word deletion) ---
 
   it("deletes the previous word on Ctrl+W", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello world");
     input.send(KEY.CTRL_W);
     input.send(KEY.ENTER);
@@ -189,7 +189,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("deletes trailing whitespace and word on Ctrl+W", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello  world  ");
     input.send(KEY.CTRL_W);
     input.send(KEY.ENTER);
@@ -197,7 +197,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("deletes the entire line if it is a single word on Ctrl+W", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello");
     input.send(KEY.CTRL_W);
     input.send(KEY.ENTER);
@@ -205,7 +205,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("merges with previous line on Ctrl+W at line start", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.SHIFT_ENTER);
     input.send(KEY.CTRL_W);
@@ -214,7 +214,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("deletes word from cursor mid-position on Ctrl+W", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("foo bar baz");
     input.send(KEY.LEFT);
     input.send(KEY.LEFT);
@@ -225,7 +225,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("deletes full-width word on Ctrl+W", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello \u3042\u3044\u3046");
     input.send(KEY.CTRL_W);
     input.send(KEY.ENTER);
@@ -235,7 +235,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Backspace (additional) ---
 
   it("deletes character at cursor mid-position on Backspace", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.LEFT); // ab|c
     input.send(KEY.BACKSPACE); // a|c
@@ -246,7 +246,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Shift+Enter line splitting ---
 
   it("splits line at cursor position on Shift+Enter", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abcd");
     input.send(KEY.LEFT); // abc|d
     input.send(KEY.LEFT); // ab|cd
@@ -258,7 +258,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Arrow key movement ---
 
   it("moves left and inserts character", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("ac");
     input.send(KEY.LEFT); // a|c
     input.send("b");
@@ -267,7 +267,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("moves right after moving left", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.LEFT);
     input.send(KEY.LEFT); // a|bc
@@ -278,7 +278,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("crosses to previous line end on Left at line start", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("ab");
     input.send(KEY.SHIFT_ENTER);
     input.send("cd");
@@ -291,7 +291,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("crosses to next line start on Right at line end", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("ab");
     input.send(KEY.SHIFT_ENTER);
     input.send("cd");
@@ -309,7 +309,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("moves up to previous line", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.SHIFT_ENTER);
     input.send("de");
@@ -320,7 +320,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("moves down to next line", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.SHIFT_ENTER);
     input.send("de");
@@ -332,7 +332,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("clamps column to line end when moving up to a shorter line", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("ab");
     input.send(KEY.SHIFT_ENTER);
     input.send("cdefg");
@@ -345,7 +345,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Alt+Arrow (word jump) ---
 
   it("jumps to word end on Alt+Right", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello world");
     for (let i = 0; i < 11; i++) input.send(KEY.LEFT);
     input.send(KEY.ALT_RIGHT); // hello|
@@ -355,7 +355,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("jumps to word start on Alt+Left", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello world");
     input.send(KEY.ALT_LEFT); // |world
     input.send("X");
@@ -364,7 +364,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("crosses to next line on Alt+Right at line end", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("ab");
     input.send(KEY.SHIFT_ENTER);
     input.send("cd");
@@ -377,7 +377,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("crosses to previous line on Alt+Left at line start", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("ab");
     input.send(KEY.SHIFT_ENTER);
     input.send("cd");
@@ -391,7 +391,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Ctrl+Arrow (line start/end, buffer start/end) ---
 
   it("moves to line end on Ctrl+Right", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello world");
     for (let i = 0; i < 11; i++) input.send(KEY.LEFT);
     input.send(KEY.CTRL_RIGHT); // -> end of line
@@ -401,7 +401,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("moves to line start on Ctrl+Left", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello world");
     input.send(KEY.CTRL_LEFT); // -> start of line
     input.send("X");
@@ -412,7 +412,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- ESC+b/f (macOS Option+Arrow fallback) ---
 
   it("jumps to word start on ESC+b", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello world");
     input.send(KEY.ESC_B); // |world
     input.send("X");
@@ -421,7 +421,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("jumps to word end on ESC+f", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello world");
     for (let i = 0; i < 11; i++) input.send(KEY.LEFT);
     input.send(KEY.ESC_F); // hello|
@@ -433,7 +433,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Cmd+Arrow (line start/end, buffer start/end) ---
 
   it("moves to line start on Cmd+Left", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello");
     input.send(KEY.CMD_LEFT); // |hello
     input.send("X");
@@ -442,7 +442,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("moves to line end on Cmd+Right", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello");
     input.send(KEY.LEFT);
     input.send(KEY.LEFT); // hel|lo
@@ -453,7 +453,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("moves to buffer start on Cmd+Up", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("line1");
     input.send(KEY.SHIFT_ENTER);
     input.send("line2");
@@ -464,7 +464,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("moves to buffer end on Cmd+Down", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("line1");
     input.send(KEY.SHIFT_ENTER);
     input.send("line2");
@@ -476,7 +476,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("Home/End keys work as line start/end", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello");
     input.send(KEY.HOME); // |hello
     input.send("A");
@@ -489,7 +489,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Protocol / Settings ---
 
   it("enables and disables raw mode", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     expect(input.setRawMode).toHaveBeenCalledWith(true);
     input.send(KEY.ENTER);
     await promise;
@@ -497,28 +497,32 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("enables and disables kitty keyboard protocol", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     expect(output.chunks).toContain("\x1b[>1u");
     input.send(KEY.ENTER);
     await promise;
     expect(output.chunks).toContain("\x1b[<u");
   });
 
-  it("displays the prompt", async () => {
-    const promise = readMultiline("> ", {
+  it("displays the prompt header", async () => {
+    const promise = readMultiline({
       input,
       output: output.stream,
+      prefix: "> ",
+      prompt: "Name:",
     });
-    expect(output.chunks[0]).toBe("> ");
+    const joined = output.chunks.join("");
+    expect(joined).toContain("> Name:");
     input.send(KEY.ENTER);
     await promise;
   });
 
-  it("displays linePrompt on continuation lines", async () => {
-    const promise = readMultiline("> ", {
+  it("displays linePrefix on continuation lines", async () => {
+    const promise = readMultiline({
       input,
       output: output.stream,
-      linePrompt: "... ",
+      prefix: "> ",
+      linePrefix: "... ",
     });
     input.send("a");
     input.send(KEY.SHIFT_ENTER);
@@ -528,7 +532,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("ignores unknown escape sequences", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("ab");
     input.send("\x1b[99~");
     input.send("c");
@@ -539,14 +543,14 @@ describe("readMultiline (TTY mode)", () => {
   // --- Full-width characters ---
 
   it("handles full-width character input", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("\u3042\u3044\u3046");
     input.send(KEY.ENTER);
     expect(await promise).toEqual(["\u3042\u3044\u3046", null]);
   });
 
   it("inserts at cursor position between full-width characters", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("\u3042\u3046");
     input.send(KEY.LEFT); // \u3042|\u3046
     input.send("\u3044");
@@ -555,7 +559,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("deletes full-width character on Backspace", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("\u3042\u3044\u3046");
     input.send(KEY.BACKSPACE);
     input.send(KEY.ENTER);
@@ -563,7 +567,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("deletes full-width character at cursor mid-position on Backspace", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("\u3042\u3044\u3046");
     input.send(KEY.LEFT); // \u3042\u3044|\u3046
     input.send(KEY.BACKSPACE);
@@ -572,7 +576,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("moves correctly with Left/Right on full-width characters", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("\u3042\u3044\u3046");
     input.send(KEY.LEFT); // \u3042\u3044|\u3046
     input.send(KEY.LEFT); // \u3042|\u3044\u3046
@@ -583,7 +587,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("handles mixed half-width and full-width characters", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("a\u3042b");
     input.send(KEY.LEFT); // a\u3042|b
     input.send(KEY.LEFT); // a|\u3042b
@@ -595,21 +599,21 @@ describe("readMultiline (TTY mode)", () => {
   // --- Paste ---
 
   it("handles multi-line paste", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("\x1b[200~line1\nline2\nline3\x1b[201~");
     input.send(KEY.ENTER);
     expect(await promise).toEqual(["line1\nline2\nline3", null]);
   });
 
   it("normalizes \\r\\n line endings in paste", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("\x1b[200~line1\r\nline2\r\nline3\x1b[201~");
     input.send(KEY.ENTER);
     expect(await promise).toEqual(["line1\nline2\nline3", null]);
   });
 
   it("pastes into existing input at cursor position", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("before");
     input.send("\x1b[200~pasted1\npasted2\x1b[201~");
     input.send("after");
@@ -618,14 +622,14 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("treats \\r in paste as newline, not submit", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("\x1b[200~a\rb\x1b[201~");
     input.send(KEY.ENTER);
     expect(await promise).toEqual(["a\nb", null]);
   });
 
   it("handles paste data split across multiple events", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("\x1b[200~hello\n");
     input.send("world\x1b[201~");
     input.send(KEY.ENTER);
@@ -633,7 +637,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("continues key operations after paste", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("\x1b[200~abc\x1b[201~");
     input.send(KEY.BACKSPACE);
     input.send(KEY.ENTER);
@@ -643,7 +647,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Full-width characters (additional) ---
 
   it("Cmd+Left/Right works with full-width characters", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("\u3042\u3044\u3046");
     input.send(KEY.CMD_LEFT); // |\u3042\u3044\u3046
     input.send("X");
@@ -656,9 +660,10 @@ describe("readMultiline (TTY mode)", () => {
   // --- ANSI output correctness ---
 
   it("writes correct ANSI cursor position for full-width characters", async () => {
-    const promise = readMultiline("> ", {
+    const promise = readMultiline({
       input,
       output: output.stream,
+      prefix: "> ",
     });
     input.send("\u3042"); // 2-column wide char
     input.send(KEY.LEFT); // should move back 2 columns
@@ -669,10 +674,12 @@ describe("readMultiline (TTY mode)", () => {
     await promise;
   });
 
-  it("writes correct ANSI cursor column with prompt offset on moveTo", async () => {
-    const promise = readMultiline(">>> ", {
+  it("writes correct ANSI cursor column with linePrefix offset on moveTo", async () => {
+    const promise = readMultiline({
       input,
       output: output.stream,
+      prefix: ">>> ",
+      // linePrefix defaults to prefix = ">>> " (width 4)
     });
     input.send("ab");
     input.send(KEY.SHIFT_ENTER);
@@ -687,7 +694,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- ESC buffering ---
 
   it("combines split ESC sequence via buffering", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello world");
     // Simulate ESC arriving separately from the rest of the sequence (ESC+b = wordLeft)
     input.send("\x1b");
@@ -700,7 +707,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("flushes standalone ESC after timeout", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send("\x1b");
     // Wait longer than ESC_TIMEOUT (50ms)
@@ -714,7 +721,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Kitty protocol key variants ---
 
   it("handles kitty Ctrl+C (CSI 99;5u)", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("text");
     input.send("\x1b[99;5u");
     const [value, error] = await promise;
@@ -723,7 +730,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("handles kitty Ctrl+D (CSI 100;5u) deletes character with input", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("text");
     input.send(KEY.LEFT);
     input.send("\x1b[100;5u"); // delete 't' at end
@@ -732,7 +739,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("handles kitty Ctrl+D (CSI 100;5u) on empty input", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("\x1b[100;5u");
     const [value, error] = await promise;
     expect(value).toBeNull();
@@ -740,7 +747,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("handles kitty Ctrl+W (CSI 119;5u)", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello world");
     input.send("\x1b[119;5u");
     input.send(KEY.ENTER);
@@ -748,7 +755,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("handles kitty Ctrl+A (CSI 97;5u) as line start", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello");
     input.send("\x1b[97;5u"); // line start
     input.send("X");
@@ -757,7 +764,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("handles kitty Ctrl+E (CSI 101;5u) as line end", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello");
     input.send(KEY.LEFT);
     input.send(KEY.LEFT);
@@ -770,7 +777,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Edge cases: boundary no-ops ---
 
   it("does nothing on Backspace at start of first line", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send(KEY.BACKSPACE);
     input.send("abc");
     input.send(KEY.ENTER);
@@ -778,7 +785,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("moves to line start on Up at first line", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.UP); // col=3 -> col=0
     input.send("X");
@@ -787,7 +794,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("does nothing on Up at first line col 0", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.HOME);
     input.send(KEY.UP); // already at col=0, no history, no-op
@@ -797,7 +804,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("does nothing on Down at last line", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.DOWN);
     input.send("X");
@@ -806,7 +813,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("does nothing on Left at start of first line", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.CMD_LEFT);
     input.send(KEY.LEFT); // already at absolute start
@@ -816,7 +823,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("does nothing on Right at end of last line", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.RIGHT); // already at end
     input.send("X");
@@ -825,7 +832,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("does nothing on Cmd+Left when already at line start", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.CMD_LEFT);
     input.send(KEY.CMD_LEFT); // already at start
@@ -835,7 +842,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("does nothing on Cmd+Right when already at line end", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.CMD_RIGHT); // already at end
     input.send("X");
@@ -844,7 +851,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("Ctrl+W on empty line does nothing", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send(KEY.CTRL_W);
     input.send("abc");
     input.send(KEY.ENTER);
@@ -854,14 +861,14 @@ describe("readMultiline (TTY mode)", () => {
   // --- Surrogate pair characters (emoji) ---
 
   it("handles surrogate pair character input", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("a\u{1F600}b"); // 😀
     input.send(KEY.ENTER);
     expect(await promise).toEqual(["a\u{1F600}b", null]);
   });
 
   it("deletes surrogate pair character on Backspace", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("a\u{1F600}b");
     input.send(KEY.BACKSPACE); // delete b
     input.send(KEY.BACKSPACE); // delete 😀
@@ -870,7 +877,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("moves cursor correctly around surrogate pair characters", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("a\u{1F600}b");
     input.send(KEY.LEFT); // a😀|b
     input.send(KEY.LEFT); // a|😀b
@@ -882,7 +889,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Cleanup ---
 
   it("enables and disables bracketed paste mode", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     expect(output.chunks).toContain("\x1b[?2004h");
     input.send(KEY.ENTER);
     await promise;
@@ -890,7 +897,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("clears escTimer on cleanup", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send("\x1b"); // start ESC buffering with timer
     // Wait for the ESC timer to flush (50ms), then cancel normally
@@ -903,12 +910,13 @@ describe("readMultiline (TTY mode)", () => {
     // and potentially cause errors. This test verifies cleanup completes cleanly.
   });
 
-  // --- linePrompt default ---
+  // --- linePrefix default ---
 
-  it("uses prompt as default linePrompt when linePrompt is not specified", async () => {
-    const promise = readMultiline(">> ", {
+  it("uses prefix as default linePrefix when linePrefix is not specified", async () => {
+    const promise = readMultiline({
       input,
       output: output.stream,
+      prefix: ">> ",
     });
     input.send("a");
     input.send(KEY.SHIFT_ENTER);
@@ -921,7 +929,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Delete key (forward delete) ---
 
   it("deletes the character ahead on Delete", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.LEFT); // ab|c
     input.send(KEY.DELETE); // ab|
@@ -930,7 +938,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("merges next line on Delete at line end", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("ab");
     input.send(KEY.SHIFT_ENTER);
     input.send("cd");
@@ -942,7 +950,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("does nothing on Delete at end of last line", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.DELETE);
     input.send(KEY.ENTER);
@@ -950,7 +958,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("deletes full-width character on Delete", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("\u3042\u3044\u3046");
     input.send(KEY.LEFT);
     input.send(KEY.LEFT); // あ|いう
@@ -962,7 +970,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Ctrl+U (delete to line start) ---
 
   it("deletes from cursor to line start on Ctrl+U", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello world");
     input.send(KEY.LEFT);
     input.send(KEY.LEFT);
@@ -975,7 +983,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("does nothing on Ctrl+U at line start", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.CMD_LEFT);
     input.send(KEY.CTRL_U);
@@ -986,7 +994,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Ctrl+K (delete to line end) ---
 
   it("deletes from cursor to line end on Ctrl+K", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello world");
     input.send(KEY.LEFT);
     input.send(KEY.LEFT);
@@ -999,7 +1007,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("does nothing on Ctrl+K at line end", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.CTRL_K);
     input.send(KEY.ENTER);
@@ -1009,7 +1017,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- initialValue ---
 
   it("pre-populates input with initialValue", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       initialValue: "hello",
@@ -1019,7 +1027,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("pre-populates multi-line initialValue", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       initialValue: "line1\nline2\nline3",
@@ -1029,7 +1037,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("allows editing after initialValue", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       initialValue: "hello",
@@ -1042,7 +1050,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- History ---
 
   it("navigates to previous history on Up at first line", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       history: ["first", "second"],
@@ -1053,7 +1061,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("navigates through history entries", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       history: ["first", "second"],
@@ -1065,7 +1073,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("returns to draft on Down past end of history", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       history: ["first", "second"],
@@ -1081,7 +1089,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("Up at first line with col > 0 moves to col 0 instead of history", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       history: ["old"],
@@ -1094,7 +1102,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("Down at last line with col < end moves to end instead of history", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       history: ["old"],
@@ -1112,7 +1120,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("does not go past beginning of history", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       history: ["only"],
@@ -1124,7 +1132,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("Up on non-first line moves cursor, not history", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       history: ["old"],
@@ -1139,7 +1147,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("Down on non-last line moves cursor, not history", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       history: ["old"],
@@ -1155,7 +1163,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("Alt+Up/Down navigates history directly", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       history: ["old"],
@@ -1168,7 +1176,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("navigates multi-line history entries", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       history: ["line1\nline2"],
@@ -1181,7 +1189,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- historyArrowNavigation: "double" ---
 
   it("double mode: requires two Up presses at boundary to navigate history", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       history: ["old"],
@@ -1194,7 +1202,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("double mode: two consecutive Up presses at boundary navigates history", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       history: ["old"],
@@ -1209,7 +1217,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- historyArrowNavigation: "disabled" ---
 
   it("disabled mode: Up/Down never triggers history", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       history: ["old"],
@@ -1223,7 +1231,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("disabled mode: dedicated keys still navigate history", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       history: ["old"],
@@ -1237,7 +1245,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Dedicated history keys ---
 
   it("Ctrl+P/N navigates history", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       history: ["first", "second"],
@@ -1250,7 +1258,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("PageUp/PageDown navigates history", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       history: ["first", "second"],
@@ -1265,7 +1273,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Ctrl+Up/Down for buffer navigation ---
 
   it("Ctrl+Up moves to buffer start", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
     });
@@ -1279,7 +1287,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("Ctrl+Down moves to buffer end", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
     });
@@ -1296,7 +1304,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Validation ---
 
   it("rejects submit when validation fails", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       validate: (v) => (v.length < 3 ? "Too short" : undefined),
@@ -1309,7 +1317,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("submits when validation returns undefined", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       validate: () => undefined,
@@ -1320,7 +1328,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("submits when validation returns null", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       validate: () => null,
@@ -1333,7 +1341,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Max lines ---
 
   it("prevents newline insertion when at maxLines", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       maxLines: 2,
@@ -1350,7 +1358,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Max length ---
 
   it("prevents character insertion when at maxLength", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       maxLength: 5,
@@ -1362,7 +1370,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("counts newlines in maxLength", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       maxLength: 5,
@@ -1376,7 +1384,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("allows deletion when at maxLength", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       maxLength: 3,
@@ -1391,7 +1399,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Ctrl+L ---
 
   it("Ctrl+L preserves input content", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello");
     input.send(KEY.CTRL_L);
     input.send(KEY.ENTER);
@@ -1401,7 +1409,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- Undo / Redo ---
 
   it("undoes character insertion with Ctrl+Z", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.CTRL_Z); // undo grouped "abc" insert
     input.send(KEY.ENTER);
@@ -1409,7 +1417,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("undoes and redoes with Ctrl+Z / Ctrl+Y", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello");
     input.send(KEY.CTRL_Z); // undo
     input.send(KEY.CTRL_Y); // redo
@@ -1418,7 +1426,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("undoes newline insertion", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("ab");
     input.send(KEY.SHIFT_ENTER);
     input.send(KEY.CTRL_Z); // undo newline
@@ -1427,7 +1435,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("undoes backspace", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.BACKSPACE); // delete c
     input.send(KEY.CTRL_Z); // undo backspace
@@ -1436,7 +1444,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("undoes delete key", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.LEFT); // ab|c
     input.send(KEY.DELETE); // ab|
@@ -1446,7 +1454,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("undoes Ctrl+W word deletion", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello world");
     input.send(KEY.CTRL_W); // delete "world"
     input.send(KEY.CTRL_Z); // undo
@@ -1455,7 +1463,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("undoes Ctrl+U delete to line start", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello");
     input.send(KEY.CTRL_U); // delete all
     input.send(KEY.CTRL_Z); // undo
@@ -1464,7 +1472,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("undoes Ctrl+K delete to line end", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello");
     input.send(KEY.CMD_LEFT); // |hello
     input.send(KEY.CTRL_K); // delete all
@@ -1474,7 +1482,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("multiple undos step through history", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("aaa");
     input.send(KEY.SHIFT_ENTER); // newline (separate undo step)
     input.send("bbb");
@@ -1485,7 +1493,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("redo is cleared on new edit after undo", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.CTRL_Z); // undo -> ""
     input.send("xyz"); // new edit, clears redo
@@ -1495,7 +1503,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("Ctrl+Shift+Z works as redo (kitty)", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("hello");
     input.send(KEY.CTRL_Z); // undo
     input.send(KEY.CTRL_SHIFT_Z); // redo
@@ -1504,7 +1512,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("undo does nothing when stack is empty", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send(KEY.CTRL_Z); // nothing to undo
     input.send("abc");
     input.send(KEY.ENTER);
@@ -1512,7 +1520,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("redo does nothing when stack is empty", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.CTRL_Y); // nothing to redo
     input.send(KEY.ENTER);
@@ -1520,7 +1528,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("undoes paste as a single unit", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("before");
     input.send("\x1b[200~line1\nline2\nline3\x1b[201~");
     input.send(KEY.CTRL_Z); // undo entire paste
@@ -1529,7 +1537,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("groups consecutive character inserts into one undo step", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("a");
     input.send("b");
     input.send("c"); // all grouped as one insert
@@ -1539,7 +1547,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("newline breaks insert grouping for undo", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ input, output: output.stream });
     input.send("abc");
     input.send(KEY.SHIFT_ENTER); // breaks group
     input.send("def");
@@ -1553,7 +1561,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- preferNewlineOnEnter option ---
 
   it("preferNewlineOnEnter=true: Enter inserts newline, modified Enter submits", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       preferNewlineOnEnter: true,
@@ -1567,7 +1575,7 @@ describe("readMultiline (TTY mode)", () => {
 
   it("preferNewlineOnEnter=true: Ctrl+J still inserts newline (always newline)", async () => {
     const CTRL_J = "\n";
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       preferNewlineOnEnter: true,
@@ -1581,7 +1589,7 @@ describe("readMultiline (TTY mode)", () => {
 
   it("preferNewlineOnEnter=true: Cmd+Enter submits", async () => {
     const CMD_ENTER = "\x1b[13;9u";
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       preferNewlineOnEnter: true,
@@ -1595,7 +1603,7 @@ describe("readMultiline (TTY mode)", () => {
 
   it("preferNewlineOnEnter=true: Ctrl+Enter (kitty) submits", async () => {
     const CTRL_ENTER = "\x1b[13;5u";
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       preferNewlineOnEnter: true,
@@ -1607,7 +1615,7 @@ describe("readMultiline (TTY mode)", () => {
 
   it("preferNewlineOnEnter=true: Alt+Enter (legacy ESC+CR) submits", async () => {
     const ALT_ENTER_LEGACY = "\x1b\r";
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       preferNewlineOnEnter: true,
@@ -1619,7 +1627,7 @@ describe("readMultiline (TTY mode)", () => {
 
   it("preferNewlineOnEnter=false (default): all modified enters insert newline", async () => {
     const CTRL_J = "\n";
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
     });
@@ -1633,7 +1641,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("preferNewlineOnEnter=true: plain Enter does not submit", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       preferNewlineOnEnter: true,
@@ -1649,7 +1657,7 @@ describe("readMultiline (TTY mode)", () => {
 
   it("preferNewlineOnEnter=true: validation runs on modified enter submit", async () => {
     const CMD_ENTER = "\x1b[13;9u";
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       preferNewlineOnEnter: true,
@@ -1663,7 +1671,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("preferNewlineOnEnter=true with maxLines: Enter respects maxLines", async () => {
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       preferNewlineOnEnter: true,
@@ -1682,7 +1690,7 @@ describe("readMultiline (TTY mode)", () => {
 
   it("disabledKeys disables specific key combos", async () => {
     const CTRL_J = "\n";
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       disabledKeys: ["ctrl+j"],
@@ -1697,7 +1705,7 @@ describe("readMultiline (TTY mode)", () => {
 
   it("disabledKeys works with preferNewlineOnEnter=true", async () => {
     const CMD_ENTER = "\x1b[13;9u";
-    const promise = readMultiline("", {
+    const promise = readMultiline({
       input,
       output: output.stream,
       preferNewlineOnEnter: true,
@@ -1713,7 +1721,7 @@ describe("readMultiline (TTY mode)", () => {
   // --- clear after submit ---
 
   it("clears input from terminal after submit", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ prefix: "", input, output: output.stream });
     input.send("hello");
     input.send(KEY.ENTER);
     await promise;
@@ -1727,7 +1735,7 @@ describe("readMultiline (TTY mode)", () => {
   });
 
   it("clears multi-line input after submit", async () => {
-    const promise = readMultiline("", { input, output: output.stream });
+    const promise = readMultiline({ prefix: "", input, output: output.stream });
     input.send("line1");
     input.send(KEY.SHIFT_ENTER);
     input.send("line2");
@@ -1744,12 +1752,200 @@ describe("readMultiline (TTY mode)", () => {
   });
 });
 
+// --- cancelRender option ---
+
+describe("cancelRender", () => {
+  let input: TTYInput & EventEmitter & { send: (data: string) => void };
+  let output: ReturnType<typeof createNullOutput>;
+  beforeEach(() => {
+    input = createTTYInput();
+    output = createNullOutput();
+  });
+
+  it("cancelRender default (clear): clears input on Ctrl+C", async () => {
+    const onError = vi.fn();
+    const promise = readMultiline({ input, output: output.stream, onError });
+    input.send("hello");
+    input.send(KEY.CTRL_C);
+    await promise;
+    const raw = output.chunks.join("");
+    // Should contain clear sequence
+    expect(raw).toContain("\r\x1b[J");
+  });
+
+  it("cancelRender preserve: re-renders with cancelled state on Ctrl+C", async () => {
+    const onError = vi.fn();
+    const promise = readMultiline({
+      input,
+      output: output.stream,
+      onError,
+      prefix: { pending: "? ", submitted: "✔ ", cancelled: "✖ " },
+      theme: { cancelRender: "preserve" },
+    });
+    input.send("hello");
+    input.send(KEY.CTRL_C);
+    await promise;
+    const raw = output.chunks.join("");
+    // Should contain the cancelled prefix
+    expect(raw).toContain("✖ ");
+    // Should end with newline (preserve mode)
+    expect(raw.endsWith("\n")).toBe(true);
+  });
+
+  it("cancelRender preserve: applies cancelAnswer style and keeps input visible", async () => {
+    const onError = vi.fn();
+    const promise = readMultiline({
+      input,
+      output: output.stream,
+      onError,
+      prefix: { pending: "> ", submitted: "> " },
+      theme: { cancelRender: "preserve", cancelAnswer: "dim" },
+    });
+    input.send("hello");
+    input.send(KEY.CTRL_C);
+    await promise;
+    const raw = output.chunks.join("");
+    // Input text should be present in the re-rendered output
+    expect(raw).toContain("hello");
+    // Should end with newline (preserve mode)
+    expect(raw.endsWith("\n")).toBe(true);
+  });
+
+  it("cancelRender preserve: falls back to pending prefix when cancelled not specified", async () => {
+    const onError = vi.fn();
+    const promise = readMultiline({
+      input,
+      output: output.stream,
+      onError,
+      prefix: { pending: "? ", submitted: "✔ " },
+      theme: { cancelRender: "preserve" },
+    });
+    input.send("hello");
+    input.send(KEY.CTRL_C);
+    await promise;
+    const raw = output.chunks.join("");
+    // Should fall back to pending prefix "? "
+    expect(raw).toContain("? ");
+  });
+
+  it("cancelRender preserve: returns cancel error with cancelled prefix rendered", async () => {
+    const promise = readMultiline({
+      input,
+      output: output.stream,
+      prefix: { pending: "? ", submitted: "✔ ", cancelled: "✖ " },
+      theme: { cancelRender: "preserve" },
+    });
+    input.send("hello");
+    input.send(KEY.CTRL_C);
+    const [value, error] = await promise;
+    expect(value).toBeNull();
+    expect(error).toEqual({ kind: "cancel", message: "Input cancelled" });
+    const raw = output.chunks.join("");
+    // Should still render with cancelled prefix
+    expect(raw).toContain("✖ ");
+  });
+
+  it("onError: calls callback with error and resolves with [value, error]", async () => {
+    let receivedError: unknown = null;
+    const promise = readMultiline({
+      input,
+      output: output.stream,
+      onError: (err) => {
+        receivedError = err;
+      },
+    });
+    input.send("hello");
+    input.send(KEY.CTRL_C);
+    const [value, error] = await promise;
+    expect(receivedError).toEqual({ kind: "cancel", message: "Input cancelled" });
+    expect(value).toBe("hello");
+    expect(error).toEqual({ kind: "cancel", message: "Input cancelled" });
+  });
+
+  it("onError: return value overrides error in result tuple", async () => {
+    const customError = { kind: "custom", reason: "user cancelled" };
+    const promise = readMultiline({
+      input,
+      output: output.stream,
+      onError: () => customError,
+    });
+    input.send("hello");
+    input.send(KEY.CTRL_C);
+    const [value, error] = await promise;
+    expect(value).toBe("hello");
+    expect(error).toEqual(customError);
+  });
+
+  it("onError: undefined return keeps default CancelError", async () => {
+    const promise = readMultiline({
+      input,
+      output: output.stream,
+      onError: () => undefined,
+    });
+    input.send("hello");
+    input.send(KEY.CTRL_C);
+    const [value, error] = await promise;
+    expect(value).toBe("hello");
+    expect(error).toEqual({ kind: "cancel", message: "Input cancelled" });
+  });
+
+  it("onError with cancelRender preserve: renders cancelled state and resolves with value", async () => {
+    let cancelled = false;
+    const promise = readMultiline({
+      input,
+      output: output.stream,
+      prefix: { pending: "? ", submitted: "✔ ", cancelled: "✖ " },
+      theme: { cancelRender: "preserve" },
+      onError: () => {
+        cancelled = true;
+      },
+    });
+    input.send("hello");
+    input.send(KEY.CTRL_C);
+    const [value, error] = await promise;
+    expect(cancelled).toBe(true);
+    expect(value).toBe("hello");
+    expect(error).toEqual({ kind: "cancel", message: "Input cancelled" });
+    const raw = output.chunks.join("");
+    expect(raw).toContain("✖ ");
+  });
+
+  it("onError: called on EOF (Ctrl+D on empty input)", async () => {
+    let receivedError: unknown = null;
+    const promise = readMultiline({
+      input,
+      output: output.stream,
+      onError: (err) => {
+        receivedError = err;
+      },
+    });
+    input.send(KEY.CTRL_D);
+    const [value, error] = await promise;
+    expect(receivedError).toEqual({ kind: "eof", message: "EOF received on empty input" });
+    expect(value).toBe("");
+    expect(error).toEqual({ kind: "eof", message: "EOF received on empty input" });
+  });
+
+  it("onError: EOF return value overrides error", async () => {
+    const customError = { kind: "custom-eof" };
+    const promise = readMultiline({
+      input,
+      output: output.stream,
+      onError: () => customError,
+    });
+    input.send(KEY.CTRL_D);
+    const [value, error] = await promise;
+    expect(value).toBe("");
+    expect(error).toEqual(customError);
+  });
+});
+
 describe("readMultiline (pipe mode)", () => {
   it("reads all lines until EOF from pipe input", async () => {
     const input = Readable.from(["line1\nline2\nline3\n"]) as TTYInput;
     input.isTTY = false;
     const { stream } = createNullOutput();
-    expect(await readMultiline("", { input, output: stream })).toEqual([
+    expect(await readMultiline({ input, output: stream })).toEqual([
       "line1\nline2\nline3",
       null,
     ]);
@@ -1759,20 +1955,59 @@ describe("readMultiline (pipe mode)", () => {
     const input = Readable.from(["hello\nworld"]) as TTYInput;
     input.isTTY = false;
     const { stream } = createNullOutput();
-    expect(await readMultiline("", { input, output: stream })).toEqual(["hello\nworld", null]);
+    expect(await readMultiline({ input, output: stream })).toEqual(["hello\nworld", null]);
   });
 
   it("returns empty string on immediate EOF from pipe", async () => {
     const input = Readable.from([]) as TTYInput;
     input.isTTY = false;
     const { stream } = createNullOutput();
-    expect(await readMultiline("", { input, output: stream })).toEqual(["", null]);
+    expect(await readMultiline({ input, output: stream })).toEqual(["", null]);
   });
 
   it("handles pipe data split across multiple chunks", async () => {
     const input = Readable.from(["hel", "lo\nwor", "ld"]) as TTYInput;
     input.isTTY = false;
     const { stream } = createNullOutput();
-    expect(await readMultiline("", { input, output: stream })).toEqual(["hello\nworld", null]);
+    expect(await readMultiline({ input, output: stream })).toEqual(["hello\nworld", null]);
+  });
+});
+
+describe("createPrompt", () => {
+  let input: ReturnType<typeof createTTYInput>;
+  let output: ReturnType<typeof createNullOutput>;
+
+  beforeEach(() => {
+    input = createTTYInput();
+    output = createNullOutput();
+  });
+
+  it("per-call options override shared config", async () => {
+    const ask = createPrompt({ prefix: "shared> ", input, output: output.stream });
+    const promise = ask({ prefix: "override> " });
+    input.send("hello");
+    input.send(KEY.ENTER);
+    await promise;
+    const raw = output.chunks.join("");
+    expect(raw).toContain("override> ");
+  });
+
+  it("shared config is not mutated by per-call options", async () => {
+    const shared = { prefix: "shared> ", input, output: output.stream };
+    const ask = createPrompt(shared);
+    const promise = ask({ prefix: "override> " });
+    input.send(KEY.ENTER);
+    await promise;
+    expect(shared.prefix).toBe("shared> ");
+  });
+
+  it("uses shared config when no per-call options given", async () => {
+    const ask = createPrompt({ prefix: "$ ", input, output: output.stream });
+    const promise = ask();
+    input.send("test");
+    input.send(KEY.ENTER);
+    await promise;
+    const raw = output.chunks.join("");
+    expect(raw).toContain("$ ");
   });
 });

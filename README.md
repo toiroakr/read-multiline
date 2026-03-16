@@ -21,6 +21,9 @@ Simple multi-line input reader for Node.js terminals. Solves the limitation of N
 - Terminal resize (SIGWINCH) handling
 - **Ctrl+C** / **Ctrl+D** handling
 - Non-TTY (pipe) input support
+- Theme/style system with state-dependent styling
+- Built-in presets for `@inquirer/prompts` and `@clack/prompts`
+- `createPrompt()` factory for reusable shared configuration
 - Zero dependencies
 
 Best experience with terminals supporting the [kitty keyboard protocol](https://sw.kovidgoyal.net/kitty/keyboard-protocol/) (kitty, iTerm2, WezTerm, Ghostty, foot, etc.). **Ctrl+J** always inserts a newline regardless of settings, serving as a universal fallback in all terminals.
@@ -36,8 +39,8 @@ pnpm add @toiroakr/read-multiline
 ```typescript
 import { readMultiline } from "@toiroakr/read-multiline";
 
-const [text, error] = await readMultiline("Enter your message:", {
-  linePrompt: "  ",
+const [value, error] = await readMultiline({
+  prefix: "> ",
   history: { filePath: "./history.json" },
   maxLines: 10,
   maxLength: 1000,
@@ -45,40 +48,154 @@ const [text, error] = await readMultiline("Enter your message:", {
 });
 
 if (error) {
-  console.log(error.kind === "cancel" ? "Cancelled" : "EOF");
+  if (error.kind === "cancel") console.log("Cancelled");
+  else if (error.kind === "eof") console.log("EOF");
 } else {
-  console.log("You entered:", text);
+  console.log("You entered:", value);
 }
+```
+
+### With presets
+
+```typescript
+import { createPrompt, presets } from "@toiroakr/read-multiline";
+
+// inquirer-style prompt
+const askInquirer = createPrompt(presets.inquirer);
+const [name] = await askInquirer({ prompt: "What is your name?" });
+const [bio] = await askInquirer({ prompt: "Tell me about yourself:" });
+
+// clack-style prompt
+const askClack = createPrompt(presets.clack);
+const [input] = await askClack({ prompt: "Enter some text:" });
 ```
 
 ## API
 
-### `readMultiline(prompt, options?): Promise<ReadMultilineResult>`
+### `readMultiline(options?): Promise<ReadMultilineResult>`
 
-#### Parameters
+Returns a `ReadMultilineResult` tuple:
 
-| Parameter | Type     | Description               |
-| --------- | -------- | ------------------------- |
-| `prompt`  | `string` | Prompt for the first line |
+- `[string, null]` on success (submitted input)
+- `[null, { kind: "cancel" }]` on Ctrl+C (unless `onCancel` is set)
+- `[null, { kind: "eof" }]` on Ctrl+D with empty input
 
-#### Options
+| Option                   | Type                                             | Default          | Description                                                                                                          |
+| ------------------------ | ------------------------------------------------ | ---------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `prefix`                 | `Stateful<string>`                               | `"> "`           | Prefix before the prompt message. Can be state-dependent                                                             |
+| `prompt`                 | `string`                                         | `""`             | Prompt message on the header line above input                                                                        |
+| `linePrefix`             | `Stateful<string>`                               | same as `prefix` | Prefix for each input line. Can be state-dependent                                                                   |
+| `theme`                  | `PromptTheme`                                    | `undefined`      | Theme for styling prompt elements                                                                                    |
+| `input`                  | `TTYInput`                                       | `process.stdin`  | Input stream                                                                                                         |
+| `output`                 | `WritableStream`                                 | `process.stdout` | Output stream                                                                                                        |
+| `initialValue`           | `string`                                         | `undefined`      | Pre-populate the input                                                                                               |
+| `history`                | `string[] \| HistoryOptions`                     | `[]`             | History entries or file-based persistent history                                                                     |
+| `historyArrowNavigation` | `"single" \| "double" \| "disabled"`             | `"single"`       | How Up/Down interacts with history at boundaries                                                                     |
+| `maxLines`               | `number`                                         | `undefined`      | Maximum number of lines                                                                                              |
+| `maxLength`              | `number`                                         | `undefined`      | Maximum total character count                                                                                        |
+| `validate`               | `(value: string) => string \| undefined \| null` | `undefined`      | Validation function (return error message to reject)                                                                 |
+| `validateDebounceMs`     | `number`                                         | `300`            | Debounce interval for live validation                                                                                |
+| `preferNewlineOnEnter`   | `boolean`                                        | `false`          | `true`: Enter=newline, `false`: Enter=submit                                                                         |
+| `disabledKeys`           | `ModifiedEnterKey[]`                             | `[]`             | Key combos to disable                                                                                                |
+| `clearAfterSubmit`       | `boolean`                                        | `true`           | **Deprecated.** Clear input from terminal after submit. Use `theme.submitRender` instead                             |
+| `onError`                | `(error: ReadMultilineError) => unknown`         | `undefined`      | Error callback (Ctrl+C / Ctrl+D). Resolves `[value, error]` instead of `[null, error]`. Return value overrides error |
+| `footer`                 | `string`                                         | `undefined`      | Fixed footer text below the editor                                                                                   |
+| `helpFooter`             | `boolean \| HelpFooterDisplayOptions`            | `true`           | Auto-generated key bindings help footer                                                                              |
 
-| Option                   | Type                                             | Default          | Description                                          |
-| ------------------------ | ------------------------------------------------ | ---------------- | ---------------------------------------------------- |
-| `linePrompt`             | `string`                                         | same as `prompt` | Prompt for continuation lines                        |
-| `input`                  | `TTYInput`                                       | `process.stdin`  | Input stream                                         |
-| `output`                 | `WritableStream`                                 | `process.stdout` | Output stream                                        |
-| `initialValue`           | `string`                                         | `undefined`      | Pre-populate the input                               |
-| `history`                | `string[] \| HistoryOptions`                     | `[]`             | History entries or file-based persistent history     |
-| `historyArrowNavigation` | `"single" \| "double" \| "disabled"`             | `"single"`       | How Up/Down interacts with history at boundaries     |
-| `maxLines`               | `number`                                         | `undefined`      | Maximum number of lines                              |
-| `maxLength`              | `number`                                         | `undefined`      | Maximum total character count                        |
-| `validate`               | `(value: string) => string \| undefined \| null` | `undefined`      | Validation function (return error message to reject) |
-| `validateDebounceMs`     | `number`                                         | `300`            | Debounce interval for live validation                |
-| `preferNewlineOnEnter`   | `boolean`                                        | `false`          | `true`: Enter=newline, `false`: Enter=submit         |
-| `disabledKeys`           | `ModifiedEnterKey[]`                             | `[]`             | Key combos to disable                                |
-| `footer`                 | `string`                                         | `undefined`      | Fixed footer text below the editor                   |
-| `helpFooter`             | `boolean \| HelpFooterDisplayOptions`            | `true`           | Auto-generated key bindings help footer              |
+### Layout
+
+The prompt renders as two visual areas: a **header line** and **input lines**.
+
+```
+[prefix][prompt]        ← header line (no input text here)
+[linePrefix][line 1]    ← all input lines use linePrefix
+[linePrefix][line 2]
+```
+
+When `prompt` is empty and `prefix` is empty, no header line is shown.
+
+### `Stateful<T>`
+
+Options like `prefix`, `linePrefix`, and theme styles accept a `Stateful<T>` value — either a plain value or an object with per-state values:
+
+```typescript
+// Plain value (same in all states)
+prefix: "> "
+
+// State-dependent values
+prefix: {
+  pending: "? ",      // while editing
+  submitted: "✔ ",    // after submission
+  cancelled: "✘ ",    // after Ctrl+C (optional, defaults to pending)
+  error: "! ",        // on validation error (optional, defaults to pending)
+}
+```
+
+### `PromptTheme`
+
+| Property       | Type                        | Description                                         |
+| -------------- | --------------------------- | --------------------------------------------------- |
+| `prefix`       | `Stateful<StyleTextFormat>` | Style for the prefix text                           |
+| `linePrefix`   | `Stateful<StyleTextFormat>` | Style for the line prefix text                      |
+| `prompt`       | `StyleTextFormat`           | Style for the prompt message                        |
+| `input`        | `StyleTextFormat`           | Style for user input text while editing             |
+| `answer`       | `StyleTextFormat`           | Style for the answer text after submission          |
+| `cancelAnswer` | `StyleTextFormat`           | Style for the answer text after cancellation        |
+| `submitRender` | `"clear" \| "preserve"`     | How to render after submission (default: `"clear"`) |
+| `cancelRender` | `"clear" \| "preserve"`     | How to render after Ctrl+C (default: `"clear"`)     |
+| `error`        | `StyleTextFormat`           | Style for validation error messages                 |
+| `success`      | `StyleTextFormat`           | Style for validation success messages               |
+| `footer`       | `StyleTextFormat`           | Style for footer text                               |
+
+`StyleTextFormat` is the format parameter of Node.js's `util.styleText()` — e.g. `"bold"`, `"red"`, `"cyan"`, `["strikethrough", "dim"]`.
+
+### `createPrompt(shared)`
+
+Create a reusable prompt function with shared configuration. Per-call options are shallow-merged over the shared config.
+
+```typescript
+import { createPrompt, presets } from "@toiroakr/read-multiline";
+
+const ask = createPrompt(presets.inquirer);
+const [name] = await ask({ prompt: "Name:" });
+const [email] = await ask({ prompt: "Email:" });
+```
+
+### Presets
+
+#### `presets.inquirer`
+
+Mimics `@inquirer/prompts` visual style:
+
+```
+? Enter name:          (pending)
+  John
+
+✔ Enter name:          (submitted)
+  John
+```
+
+- Blue `?` prefix → green `✔` on submit
+- Bold prompt, cyan answer
+- `submitRender: "preserve"`, `cancelRender: "preserve"`
+
+#### `presets.clack`
+
+Mimics `@clack/prompts` visual style:
+
+```
+│                      (pending)
+◆  Enter name:
+│  John
+
+│                      (submitted)
+◇  Enter name:
+│  John
+```
+
+- Cyan `◆` → green `◇` on submit, red `■` on cancel, yellow `▲` on error
+- Gray guide bar, dim answer, strikethrough+dim cancel answer
+- `submitRender: "preserve"`, `cancelRender: "preserve"`
 
 > **Note:** Ctrl+J (0x0A) always inserts a newline regardless of `preferNewlineOnEnter`.
 > When `preferNewlineOnEnter: true` is set but the kitty keyboard protocol is not supported,
@@ -140,10 +257,10 @@ The following table shows all key bindings and their availability across termina
 
 #### Control
 
-| Key    | Action                                            | Terminal |
-| ------ | ------------------------------------------------- | -------- |
-| Ctrl+C | Cancel (`CancelError`)                            | All      |
-| Ctrl+D | Submit if input exists, EOF if empty (`EOFError`) | All      |
+| Key    | Action                                                                                                         | Terminal |
+| ------ | -------------------------------------------------------------------------------------------------------------- | -------- |
+| Ctrl+C | Cancel (returns `[null, { kind: "cancel" }]`, or `[value, error]` if `onError` is set)                         | All      |
+| Ctrl+D | Delete at cursor, or EOF if empty (returns `[null, { kind: "eof" }]`, or `[value, error]` if `onError` is set) | All      |
 
 ### Disabling Keys
 
@@ -151,10 +268,10 @@ Use `disabledKeys` to ignore specific key combinations:
 
 ```typescript
 // Disable Ctrl+J (e.g., if it conflicts with your app)
-await readMultiline("Prompt:", { disabledKeys: ["ctrl+j"] });
+await readMultiline({ disabledKeys: ["ctrl+j"] });
 
 // Only allow Shift+Enter and Ctrl+J as newline
-await readMultiline("Prompt:", { disabledKeys: ["ctrl+enter", "cmd+enter", "alt+enter"] });
+await readMultiline({ disabledKeys: ["ctrl+enter", "cmd+enter", "alt+enter"] });
 ```
 
 Valid values: `"shift+enter"`, `"ctrl+enter"`, `"cmd+enter"`, `"alt+enter"`, `"ctrl+j"`
@@ -165,10 +282,10 @@ Pass an array for in-memory history, or a `HistoryOptions` object for file-based
 
 ```typescript
 // In-memory history
-await readMultiline("", { history: ["previous input"] });
+await readMultiline({ history: ["previous input"] });
 
 // File-based persistent history
-await readMultiline("", {
+await readMultiline({
   history: { filePath: "~/.myapp/history.json", maxEntries: 50 },
 });
 ```
@@ -194,10 +311,10 @@ Use `footer` for custom text, `helpFooter` for auto-generated key bindings help:
 
 ```typescript
 // Auto-generated help footer (detects terminal capabilities)
-await readMultiline("", { helpFooter: true });
+await readMultiline({ helpFooter: true });
 
 // Customized help footer
-await readMultiline("", {
+await readMultiline({
   helpFooter: {
     items: ["submit", "newline", "undo"], // Choose actions and order (default: ["submit", "newline", "undo", "cancel", "eof"])
     maxKeysPerAction: 3, // Show up to 3 key alternatives per action (default: 2)
@@ -208,7 +325,7 @@ await readMultiline("", {
 });
 
 // Custom footer + help footer together
-await readMultiline("", {
+await readMultiline({
   footer: "Type your message below",
   helpFooter: true,
 });
@@ -222,6 +339,7 @@ When a `validate` function is provided:
 
 1. On submit, the input is validated. If validation fails, a red error message appears below the input and submission is blocked.
 2. After the first validation failure, validation runs on every change (debounced) with live feedback: red for errors, green "OK" when valid.
+3. When a theme with error visual state is configured (e.g. `presets.clack`), the prefix and line prefix switch to their error-state appearance during validation errors.
 
 ### Limits
 

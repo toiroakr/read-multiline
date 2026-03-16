@@ -1,5 +1,14 @@
 import { charAtIndex, charBeforeIndex, charWidth, isWordChar } from "./chars.js";
-import { beginBatch, drawBelowEditor, flushBatch, moveTo, pW, tCol, w } from "./rendering.js";
+import {
+  beginBatch,
+  drawBelowEditor,
+  flushBatch,
+  moveTo,
+  pW,
+  styledInput,
+  tCol,
+  w,
+} from "./rendering.js";
 import type { EditorState } from "./types.js";
 
 // --- Basic cursor movement ---
@@ -186,13 +195,13 @@ export function loadContent(
   const newLines = content.split("\n");
   if (state.row > 0) w(state, `\x1b[${state.row}A`);
   w(state, "\r");
-  w(state, `\x1b[${pW(state, 0) + 1}G`);
+  w(state, `\x1b[${pW(state) + 1}G`);
   w(state, "\x1b[J");
   state.lines.length = 0;
   state.lines.push(...newLines);
-  w(state, state.lines[0]);
+  w(state, styledInput(state, state.lines[0]));
   for (let i = 1; i < state.lines.length; i++) {
-    w(state, "\n" + state.linePrompt + state.lines[i]);
+    w(state, "\n" + state.styledLinePrefix + styledInput(state, state.lines[i]));
   }
   if (cursor === "start") {
     state.row = 0;

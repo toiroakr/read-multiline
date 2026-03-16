@@ -3,12 +3,31 @@ import { handleDelete } from "./editing.js";
 import { buildHelpFooter, detectKittyProtocol } from "./footer.js";
 import { appendHistory, loadHistory, saveHistory } from "./history.js";
 import { buildKeyMap, onData } from "./input.js";
-import { clearBelowEditor, clearScreen, setFooter, setStatus, tCol, w } from "./rendering.js";
+import * as presets from "./presets/index.js";
+import {
+  clearBelowEditor,
+  clearScreen,
+  setFooter,
+  setStatusWithVisualState,
+  tCol,
+  w,
+} from "./rendering.js";
+import {
+  applyStyle,
+  buildPromptHeader,
+  buildStyledLinePrefix,
+  computeHeaderHeight,
+  resolveStateful,
+} from "./style.js";
 import type {
   EditorState,
   HistoryOptions,
+  PromptTheme,
+  ReadMultilineError,
   ReadMultilineOptions,
   ReadMultilineResult,
+  SharedConfig,
+  Stateful,
   TTYInput,
 } from "./types.js";
 export type {
@@ -18,11 +37,35 @@ export type {
   HelpFooterDisplayOptions,
   HistoryOptions,
   ModifiedEnterKey,
+  PromptTheme,
   ReadMultilineError,
   ReadMultilineOptions,
   ReadMultilineResult,
+  SharedConfig,
+  Stateful,
+  StyleTextFormat,
   TTYInput,
 } from "./types.js";
+export { presets };
+
+/**
+ * Create a reusable prompt function with shared configuration.
+ * Per-call options are shallow-merged over the shared config.
+ *
+ * @example
+ * ```typescript
+ * const ask = createPrompt({ prefix: "? ", theme: { prompt: "bold" } });
+ * const name = await ask({ prompt: "Name:" });
+ * const email = await ask({ prompt: "Email:" });
+ * ```
+ */
+export function createPrompt(
+  shared: SharedConfig,
+): (options?: ReadMultilineOptions) => Promise<ReadMultilineResult> {
+  return (options: ReadMultilineOptions = {}): Promise<ReadMultilineResult> => {
+    return readMultiline({ ...shared, ...options });
+  };
+}
 
 /**
  * Read multi-line input from the terminal.
@@ -40,8 +83,8 @@ export type {
  * - Alt+Left/Right: Word jump
  * - Cmd+Left/Right (Home/End): Jump to line start/end
  * - Cmd+Up/Down: Jump to start/end of entire input
- * - Ctrl+C: Cancel (returns [null, { kind: "cancel" }])
- * - Ctrl+D: Delete character at cursor (same as Delete key), EOF if empty (returns [null, { kind: "eof" }])
+ * - Ctrl+C: Cancel (returns [null, { kind: "cancel" }], or [input, error] if onError is set)
+ * - Ctrl+D: Delete character at cursor (same as Delete key), EOF if empty (returns [null, { kind: "eof" }], or [input, error] if onError is set)
  * - Ctrl+L: Clear screen and redraw
  * - Ctrl+Z: Undo
  * - Ctrl+Shift+Z / Ctrl+Y: Redo
@@ -52,19 +95,14 @@ export type {
  *
  * For non-TTY input (pipes), reads all lines until EOF.
  */
-export function readMultiline(
-  prompt: string,
-  options?: ReadMultilineOptions,
-): Promise<ReadMultilineResult> {
-  const { linePrompt, input = process.stdin as TTYInput, output = process.stdout } = options ?? {};
-
-  const contPrompt = linePrompt ?? prompt;
+export function readMultiline(options: ReadMultilineOptions = {}): Promise<ReadMultilineResult> {
+  const { input = process.stdin as TTYInput, output = process.stdout } = options;
 
   if (!input.isTTY) {
     return readFromPipe(input);
   }
 
-  return readFromTTY(input, output, prompt, contPrompt, options ?? {});
+  return readFromTTY(input, output, options);
 }
 
 function readFromPipe(input: NodeJS.ReadableStream): Promise<ReadMultilineResult> {
@@ -82,12 +120,14 @@ function readFromPipe(input: NodeJS.ReadableStream): Promise<ReadMultilineResult
 function readFromTTY(
   input: TTYInput,
   output: NodeJS.WritableStream,
-  prompt: string,
-  linePrompt: string,
   options: ReadMultilineOptions,
 ): Promise<ReadMultilineResult> {
   return new Promise((resolve) => {
     const {
+      prefix: prefixOption = "> ",
+      prompt: rawPrompt = "",
+      linePrefix: linePrefixOption,
+      theme,
       initialValue,
       history: historyOption,
       historyArrowNavigation = "single",
@@ -96,10 +136,21 @@ function readFromTTY(
       validate,
       validateDebounceMs = 300,
       preferNewlineOnEnter = false,
+      clearAfterSubmit = true,
       disabledKeys = [],
       footer,
       helpFooter = true,
     } = options;
+
+    // Resolve linePrefix: defaults to prefix
+    const resolvedLinePrefixOption: Stateful<string> = linePrefixOption ?? prefixOption;
+
+    // Build pending-state prompt header and line prefix
+    const promptHeader = buildPromptHeader(prefixOption, rawPrompt, theme, "pending");
+    const promptHeaderHeight = computeHeaderHeight(prefixOption, rawPrompt, promptHeader);
+    const styledLinePrefix = buildStyledLinePrefix(resolvedLinePrefixOption, theme, "pending");
+    const rawLinePrefix = resolveStateful(resolvedLinePrefixOption, "pending");
+    const linePrefixWidth = stringWidth(rawLinePrefix);
 
     const historyConfig: HistoryOptions | undefined =
       historyOption && !Array.isArray(historyOption) ? historyOption : undefined;
@@ -114,13 +165,18 @@ function readFromTTY(
       row: 0,
       col: 0,
       output,
-      prompt,
-      linePrompt,
-      promptWidth: stringWidth(prompt),
-      linePromptWidth: stringWidth(linePrompt),
+      promptHeader,
+      promptHeaderHeight,
+      styledLinePrefix,
+      linePrefixWidth,
+      visualState: "pending" as const,
+      theme,
+      prefixOption,
+      linePrefixOption: resolvedLinePrefixOption,
+      rawPrompt,
       statusText: "",
       statusColor: "",
-      footerText: footer ?? "",
+      footerText: applyStyle(footer ?? "", theme?.footer),
       rebuildFooter: null,
       history: [...historyEntries],
       historyIndex: historyEntries.length,
@@ -183,27 +239,41 @@ function readFromTTY(
       input.pause();
     }
 
+    // Determine submitRender and cancelRender modes
+    const submitRender: "clear" | "preserve" =
+      theme?.submitRender ?? (clearAfterSubmit ? "clear" : "preserve");
+    const cancelRender: "clear" | "preserve" = theme?.cancelRender ?? "clear";
+
     function submit() {
       if (validate) {
         const error = validate(state.lines.join("\n"));
         if (error) {
           state.validationActive = true;
-          setStatus(state, error, "red");
+          setStatusWithVisualState(state, error, "red", "error");
           return;
         }
       }
       const result = state.lines.join("\n");
-      // Clear editor + status + footer in one pass before cleanup
-      // to avoid scroll issues from clearBelowEditor's \r\n
-      if (state.row > 0) w(state, `\x1b[${state.row}A`);
-      w(state, "\r\x1b[J");
-      // Reset state so cleanup's clearBelowEditor is a no-op
-      state.statusText = "";
-      state.statusColor = "";
-      state.footerText = "";
-      state.row = 0;
-      state.col = 0;
+
+      if (submitRender === "clear") {
+        // Clear editor + prompt header + status + footer
+        const upCount = state.row + state.promptHeaderHeight;
+        if (upCount > 0) w(state, `\x1b[${upCount}A`);
+        w(state, "\r\x1b[J");
+        state.statusText = "";
+        state.statusColor = "";
+        state.footerText = "";
+        state.row = 0;
+        state.col = 0;
+      } else {
+        // preserve: re-render with submitted state
+        renderStateChange(state, theme, "submitted");
+      }
+
       cleanup();
+      if (submitRender !== "clear") {
+        w(state, "\n");
+      }
       if (historyConfig?.filePath) {
         const maxEntries = historyConfig.maxEntries ?? 100;
         const updated = appendHistory(state.history, result, maxEntries);
@@ -212,21 +282,47 @@ function readFromTTY(
       resolve([result, null]);
     }
 
+    function resolveWithError(defaultError: ReadMultilineError): void {
+      if (options.onError) {
+        const result = options.onError(defaultError);
+        const error = result !== undefined ? result : defaultError;
+        resolve([state.lines.join("\n"), error] as ReadMultilineResult);
+      } else {
+        resolve([null, defaultError]);
+      }
+    }
+
     function handleEOF() {
       const content = state.lines.join("\n");
       if (content.length === 0) {
         cleanup();
         w(state, "\n");
-        resolve([null, { kind: "eof", message: "EOF received on empty input" }]);
+        resolveWithError({ kind: "eof", message: "EOF received on empty input" });
       } else {
         handleDelete(state);
       }
     }
 
     function cancel() {
+      if (cancelRender === "preserve") {
+        renderStateChange(state, theme, "cancelled");
+      } else {
+        // Clear editor + prompt header + status + footer
+        const upCount = state.row + state.promptHeaderHeight;
+        if (upCount > 0) w(state, `\x1b[${upCount}A`);
+        w(state, "\r\x1b[J");
+        state.statusText = "";
+        state.statusColor = "";
+        state.footerText = "";
+        state.row = 0;
+        state.col = 0;
+      }
+
       cleanup();
-      w(state, "\n");
-      resolve([null, { kind: "cancel", message: "Input cancelled" }]);
+      if (cancelRender !== "clear") {
+        w(state, "\n");
+      }
+      resolveWithError({ kind: "cancel", message: "Input cancelled" });
     }
 
     // Build key map
@@ -234,25 +330,33 @@ function readFromTTY(
 
     // --- Initialization ---
 
-    if (prompt) w(state, prompt);
+    // Draw prompt header line
+    if (promptHeaderHeight > 0) {
+      w(state, promptHeader);
+      w(state, "\n");
+    }
+
+    // Draw first input line with linePrefix
+    w(state, styledLinePrefix);
 
     if (initialValue) {
       const initLines = initialValue.split("\n");
       state.lines.length = 0;
       state.lines.push(...initLines);
-      w(state, state.lines[0]);
-      for (let i = 1; i < state.lines.length; i++) {
-        w(state, "\n" + linePrompt + state.lines[i]);
+      w(state, applyStyle(initLines[0], theme?.input));
+      for (let i = 1; i < initLines.length; i++) {
+        w(state, "\n" + styledLinePrefix + applyStyle(initLines[i], theme?.input));
       }
-      state.row = state.lines.length - 1;
-      state.col = state.lines[state.row].length;
+      state.row = initLines.length - 1;
+      state.col = initLines[state.row].length;
     }
 
     if (footer) {
+      const styledFooter = applyStyle(footer, theme?.footer);
       const endRow = state.lines.length - 1;
       const dr = endRow - state.row;
       if (dr > 0) w(state, `\x1b[${dr}B`);
-      const footerLines = footer.split("\n");
+      const footerLines = styledFooter.split("\n");
       for (const line of footerLines) {
         w(state, "\r\n" + line + "\x1b[K");
       }
@@ -270,7 +374,7 @@ function readFromTTY(
     // Must run after raw mode is enabled so the terminal can respond to the query
     if (helpFooter) {
       const helpOpts = typeof helpFooter === "object" ? helpFooter : {};
-      const customFooter = footer ?? "";
+      const customFooter = applyStyle(footer ?? "", theme?.footer);
 
       const buildFooterForColumns = (cols: number): string => {
         const helpText = buildHelpFooter({
@@ -309,4 +413,44 @@ function readFromTTY(
 
     input.on("data", dataHandler);
   });
+}
+
+/** Re-render the editor in submitted or cancelled state with updated prefix/linePrefix and styles */
+function renderStateChange(
+  state: EditorState,
+  theme: PromptTheme | undefined,
+  renderState: "submitted" | "cancelled",
+): void {
+  // Move to top of editor (input lines + prompt header)
+  const upCount = state.row + state.promptHeaderHeight;
+  if (upCount > 0) w(state, `\x1b[${upCount}A`);
+  w(state, "\r\x1b[J");
+
+  // Rebuild prompt header and line prefix for the target state
+  const header = buildPromptHeader(state.prefixOption, state.rawPrompt, theme, renderState);
+  const headerHeight = computeHeaderHeight(state.prefixOption, state.rawPrompt, header);
+  const linePrefix = buildStyledLinePrefix(state.linePrefixOption, theme, renderState);
+
+  // Choose answer style based on state
+  const answerStyle =
+    renderState === "cancelled" ? (theme?.cancelAnswer ?? theme?.answer) : theme?.answer;
+
+  // Draw prompt header
+  if (headerHeight > 0) {
+    w(state, header);
+    w(state, "\n");
+  }
+
+  // Draw input lines with line prefix and answer style
+  for (let i = 0; i < state.lines.length; i++) {
+    if (i > 0) w(state, "\n");
+    w(state, linePrefix + applyStyle(state.lines[i], answerStyle));
+  }
+
+  // Reset state for cleanup
+  state.statusText = "";
+  state.statusColor = "";
+  state.footerText = "";
+  state.row = state.lines.length - 1;
+  state.col = state.lines[state.row].length;
 }

@@ -12,7 +12,8 @@ import {
   redrawAfterDelete,
   redrawFrom,
   restoreSnapshot,
-  setStatus,
+  setStatusWithVisualState,
+  styledInput,
   w,
 } from "./rendering.js";
 import type { EditorState, Snapshot } from "./types.js";
@@ -67,9 +68,9 @@ function scheduleValidation(state: EditorState): void {
     state.validateTimer = null;
     const error = state.validate!(state.lines.join("\n"));
     if (error) {
-      setStatus(state, error, "red");
+      setStatusWithVisualState(state, error, "red", "error");
     } else {
-      setStatus(state, "OK", "green");
+      setStatusWithVisualState(state, "OK", "green", "pending");
     }
   }, state.validateDebounceMs);
 }
@@ -79,13 +80,16 @@ export function onContentChanged(state: EditorState): void {
   if (state.maxLength != null) {
     const len = contentLength(state.lines);
     if (len >= state.maxLength) {
-      setStatus(state, `Maximum ${state.maxLength} characters`, "red");
+      setStatusWithVisualState(state, `Maximum ${state.maxLength} characters`, "red", "error");
       return;
     }
   }
 
   if (state.validationActive) {
     scheduleValidation(state);
+  } else if (state.visualState === "error") {
+    // Revert to pending when limit error clears and no active validation
+    setStatusWithVisualState(state, "", "", "pending");
   } else {
     clearStatus(state);
   }
@@ -97,7 +101,7 @@ function canInsertChar(state: EditorState, charCount: number = 1): boolean {
   if (state.maxLength != null) {
     const len = contentLength(state.lines);
     if (len + charCount > state.maxLength) {
-      setStatus(state, `Maximum ${state.maxLength} characters`, "red");
+      setStatusWithVisualState(state, `Maximum ${state.maxLength} characters`, "red", "error");
       return false;
     }
   }
@@ -106,13 +110,13 @@ function canInsertChar(state: EditorState, charCount: number = 1): boolean {
 
 function canInsertNewline(state: EditorState): boolean {
   if (state.maxLines != null && state.lines.length >= state.maxLines) {
-    setStatus(state, `Maximum ${state.maxLines} lines`, "red");
+    setStatusWithVisualState(state, `Maximum ${state.maxLines} lines`, "red", "error");
     return false;
   }
   if (state.maxLength != null) {
     const len = contentLength(state.lines);
     if (len + 1 > state.maxLength) {
-      setStatus(state, `Maximum ${state.maxLength} characters`, "red");
+      setStatusWithVisualState(state, `Maximum ${state.maxLength} characters`, "red", "error");
       return false;
     }
   }
@@ -129,7 +133,7 @@ export function insertChar(state: EditorState, ch: string): void {
     state.lines[state.row].slice(0, state.col) + ch + state.lines[state.row].slice(state.col);
   state.col += ch.length;
   const rest = state.lines[state.row].slice(state.col);
-  w(state, ch + rest);
+  w(state, styledInput(state, ch + rest));
   const restW = stringWidth(rest);
   if (restW > 0) w(state, `\x1b[${restW}D`);
   onContentChanged(state);
@@ -178,7 +182,7 @@ export function handleDelete(state: EditorState): void {
     const rest = state.lines[state.row].slice(state.col);
     const restW = stringWidth(rest);
     const deletedW = charWidth(deleted.codePointAt(0)!);
-    w(state, `${rest}${" ".repeat(deletedW)}`);
+    w(state, `${styledInput(state, rest)}${" ".repeat(deletedW)}`);
     if (restW + deletedW > 0) w(state, `\x1b[${restW + deletedW}D`);
     onContentChanged(state);
   } else if (state.row < state.lines.length - 1) {
@@ -197,10 +201,10 @@ export function deleteToLineStart(state: EditorState): void {
   const deletedWidth = stringWidth(state.lines[state.row].slice(0, state.col));
   state.lines[state.row] = state.lines[state.row].slice(state.col);
   state.col = 0;
-  w(state, `\x1b[${pW(state, state.row) + 1}G`);
-  w(state, state.lines[state.row]);
+  w(state, `\x1b[${pW(state) + 1}G`);
+  w(state, styledInput(state, state.lines[state.row]));
   w(state, " ".repeat(deletedWidth));
-  w(state, `\x1b[${pW(state, state.row) + 1}G`);
+  w(state, `\x1b[${pW(state) + 1}G`);
   onContentChanged(state);
 }
 
