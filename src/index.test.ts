@@ -1945,10 +1945,7 @@ describe("readMultiline (pipe mode)", () => {
     const input = Readable.from(["line1\nline2\nline3\n"]) as TTYInput;
     input.isTTY = false;
     const { stream } = createNullOutput();
-    expect(await readMultiline({ input, output: stream })).toEqual([
-      "line1\nline2\nline3",
-      null,
-    ]);
+    expect(await readMultiline({ input, output: stream })).toEqual(["line1\nline2\nline3", null]);
   });
 
   it("returns input without trailing newline from pipe", async () => {
