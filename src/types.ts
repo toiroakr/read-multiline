@@ -61,12 +61,9 @@ export type ReadMultilineError = CancelError | EOFError;
  * Result tuple:
  * - `[string, null]` on success
  * - `[null, ReadMultilineError]` on cancel/EOF without `onError`
- * - `[string, ReadMultilineError | unknown]` on cancel/EOF with `onError` (callback return overrides error)
+ * - `[string, unknown]` on cancel/EOF with `onError` (callback return overrides error)
  */
-export type ReadMultilineResult =
-  | [string, null]
-  | [null, ReadMultilineError]
-  | [string, ReadMultilineError | unknown];
+export type ReadMultilineResult = [string, null] | [null, ReadMultilineError] | [string, unknown];
 
 export interface ReadMultilineOptions {
   /** Prefix displayed before the prompt message (default: "> "). Can be state-dependent. */

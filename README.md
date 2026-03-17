@@ -39,8 +39,7 @@ pnpm add @toiroakr/read-multiline
 ```typescript
 import { readMultiline } from "@toiroakr/read-multiline";
 
-const [value, error] = await readMultiline("", {
-  prefix: "> ",
+const [value, error] = await readMultiline("Enter your message:", {
   history: { filePath: "./history.json" },
   maxLines: 10,
   maxLength: 1000,

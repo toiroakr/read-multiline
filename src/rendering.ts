@@ -176,31 +176,7 @@ export function setStatusWithVisualState(
     if (state.statusText || state.footerText) clearBelowAndReturn(state);
     state.statusText = text;
     state.statusColor = color;
-    // Use old header height for cursor rewind, then redraw with new state
-    beginBatch(state);
-    const upCount = state.row + oldHeaderHeight;
-    if (upCount > 0) w(state, `\x1b[${upCount}A`);
-    w(state, "\r");
-    // Draw new prompt header if present
-    if (state.promptHeaderHeight > 0) {
-      const headerLines = state.promptHeader.split("\n");
-      for (let i = 0; i < headerLines.length; i++) {
-        if (i > 0) w(state, "\n");
-        w(state, headerLines[i] + "\x1b[K");
-      }
-      w(state, "\n");
-    }
-    // Draw all input lines with linePrefix
-    w(state, state.styledLinePrefix + styledInput(state, state.lines[0]) + "\x1b[K");
-    for (let i = 1; i < state.lines.length; i++) {
-      w(state, "\n" + state.styledLinePrefix + styledInput(state, state.lines[i]) + "\x1b[K");
-    }
-    w(state, "\x1b[J");
-    const endRow = state.lines.length - 1;
-    if (endRow > state.row) w(state, `\x1b[${endRow - state.row}A`);
-    w(state, `\x1b[${tCol(state, state.row, state.col)}G`);
-    drawBelowEditor(state);
-    flushBatch(state);
+    fullRedraw(state, oldHeaderHeight);
   } else {
     setStatus(state, text, color);
   }
@@ -237,11 +213,14 @@ export function redrawFrom(
   flushBatch(state);
 }
 
-/** Clear screen and redraw all content with in-place rendering to reduce flicker */
-export function clearScreen(state: EditorState): void {
+/**
+ * Full redraw: rewind cursor, redraw prompt header and all input lines, restore cursor.
+ * @param rewindHeaderHeight - header height to use for cursor rewind (may differ from current
+ *   state.promptHeaderHeight when the visual state has just changed)
+ */
+function fullRedraw(state: EditorState, rewindHeaderHeight?: number): void {
   beginBatch(state);
-  // Move to top of editor (input lines + prompt header)
-  const upCount = state.row + state.promptHeaderHeight;
+  const upCount = state.row + (rewindHeaderHeight ?? state.promptHeaderHeight);
   if (upCount > 0) w(state, `\x1b[${upCount}A`);
   w(state, "\r");
 
@@ -260,13 +239,17 @@ export function clearScreen(state: EditorState): void {
   for (let i = 1; i < state.lines.length; i++) {
     w(state, "\n" + state.styledLinePrefix + styledInput(state, state.lines[i]) + "\x1b[K");
   }
-  // Clear any remaining lines below
   w(state, "\x1b[J");
   const endRow = state.lines.length - 1;
   if (endRow > state.row) w(state, `\x1b[${endRow - state.row}A`);
   w(state, `\x1b[${tCol(state, state.row, state.col)}G`);
   drawBelowEditor(state);
   flushBatch(state);
+}
+
+/** Clear screen and redraw all content with in-place rendering to reduce flicker */
+export function clearScreen(state: EditorState): void {
+  fullRedraw(state);
 }
 
 /** Restore editor state from a snapshot and redraw */

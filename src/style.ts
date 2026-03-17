@@ -41,7 +41,10 @@ export function buildPromptHeader(
   return styledPrefix + styledPrompt;
 }
 
-/** Compute header height from the actually-built header string for the current state */
+/**
+ * Compute the number of terminal lines the prompt header occupies.
+ * Returns 0 when both prefix and prompt are empty (no header line is rendered).
+ */
 export function computeHeaderHeight(builtHeader: string): number {
   if (builtHeader === "") return 0;
   return builtHeader.split("\n").length;
