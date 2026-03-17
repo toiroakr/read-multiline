@@ -289,7 +289,7 @@ function readFromTTY(
     function resolveWithError(defaultError: ReadMultilineError): void {
       if (options.onError) {
         const result = options.onError(defaultError);
-        const error = result !== undefined ? result : defaultError;
+        const error = result ?? defaultError;
         resolve([state.lines.join("\n"), error] as ReadMultilineResult);
       } else {
         resolve([null, defaultError]);
