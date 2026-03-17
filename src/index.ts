@@ -156,6 +156,8 @@ function readFromTTY(
     const rawLinePrefix = resolveStateful(resolvedLinePrefixOption, "pending");
     const linePrefixWidth = stringWidth(rawLinePrefix);
 
+    const styledFooter = applyStyle(footer ?? "", theme?.footer);
+
     const historyConfig: HistoryOptions | undefined =
       historyOption && !Array.isArray(historyOption) ? historyOption : undefined;
     const historyEntries = Array.isArray(historyOption)
@@ -180,7 +182,7 @@ function readFromTTY(
       rawPrompt,
       statusText: "",
       statusColor: "",
-      footerText: applyStyle(footer ?? "", theme?.footer),
+      footerText: styledFooter,
       rebuildFooter: null,
       history: [...historyEntries],
       historyIndex: historyEntries.length,
@@ -248,6 +250,18 @@ function readFromTTY(
       theme?.submitRender ?? (clearAfterSubmit ? "clear" : "preserve");
     const cancelRender: "clear" | "preserve" = theme?.cancelRender ?? "clear";
 
+    /** Erase all editor content (prompt header + input lines + status + footer) from the terminal */
+    function clearEditorArea() {
+      const upCount = state.row + state.promptHeaderHeight;
+      if (upCount > 0) w(state, `\x1b[${upCount}A`);
+      w(state, "\r\x1b[J");
+      state.statusText = "";
+      state.statusColor = "";
+      state.footerText = "";
+      state.row = 0;
+      state.col = 0;
+    }
+
     function submit() {
       if (validate) {
         const error = validate(state.lines.join("\n"));
@@ -260,17 +274,8 @@ function readFromTTY(
       const result = state.lines.join("\n");
 
       if (submitRender === "clear") {
-        // Clear editor + prompt header + status + footer
-        const upCount = state.row + state.promptHeaderHeight;
-        if (upCount > 0) w(state, `\x1b[${upCount}A`);
-        w(state, "\r\x1b[J");
-        state.statusText = "";
-        state.statusColor = "";
-        state.footerText = "";
-        state.row = 0;
-        state.col = 0;
+        clearEditorArea();
       } else {
-        // preserve: re-render with submitted state
         renderStateChange(state, theme, "submitted");
       }
 
@@ -311,15 +316,7 @@ function readFromTTY(
       if (cancelRender === "preserve") {
         renderStateChange(state, theme, "cancelled");
       } else {
-        // Clear editor + prompt header + status + footer
-        const upCount = state.row + state.promptHeaderHeight;
-        if (upCount > 0) w(state, `\x1b[${upCount}A`);
-        w(state, "\r\x1b[J");
-        state.statusText = "";
-        state.statusColor = "";
-        state.footerText = "";
-        state.row = 0;
-        state.col = 0;
+        clearEditorArea();
       }
 
       cleanup();
@@ -356,7 +353,6 @@ function readFromTTY(
     }
 
     if (footer) {
-      const styledFooter = applyStyle(footer, theme?.footer);
       const endRow = state.lines.length - 1;
       const dr = endRow - state.row;
       if (dr > 0) w(state, `\x1b[${dr}B`);
@@ -378,7 +374,6 @@ function readFromTTY(
     // Must run after raw mode is enabled so the terminal can respond to the query
     if (helpFooter) {
       const helpOpts = typeof helpFooter === "object" ? helpFooter : {};
-      const customFooter = applyStyle(footer ?? "", theme?.footer);
 
       const buildFooterForColumns = (cols: number): string => {
         const helpText = buildHelpFooter({
@@ -387,9 +382,9 @@ function readFromTTY(
           disabledKeys,
           columns: cols,
         });
-        if (!customFooter) return helpText;
-        if (!helpText) return customFooter;
-        return customFooter + "\n" + helpText;
+        if (!styledFooter) return helpText;
+        if (!helpText) return styledFooter;
+        return styledFooter + "\n" + helpText;
       };
 
       const ttyOut = output as NodeJS.WriteStream;

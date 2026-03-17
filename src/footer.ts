@@ -1,8 +1,6 @@
-import { styleText } from "node:util";
 import { stringWidth } from "./chars.js";
-import type { HelpFooterAction, ModifiedEnterKey, TTYInput } from "./types.js";
-
-type StyleTextFormat = Parameters<typeof styleText>[0];
+import { applyStyle } from "./style.js";
+import type { HelpFooterAction, ModifiedEnterKey, StyleTextFormat, TTYInput } from "./types.js";
 
 const DEFAULT_ITEMS: HelpFooterAction[] = ["submit", "newline", "undo", "cancel", "eof"];
 
@@ -202,7 +200,7 @@ function buildItems(options: HelpFooterOptions): HelpItem[] {
 }
 
 function formatItem(item: HelpItem, keyStyle?: StyleTextFormat): string {
-  const keys = item.keys.map((k) => (keyStyle ? styleText(keyStyle, k) : k)).join("/");
+  const keys = item.keys.map((k) => applyStyle(k, keyStyle)).join("/");
   return `${keys}: ${item.action}`;
 }
 
@@ -254,5 +252,5 @@ export function buildHelpFooter(options: HelpFooterOptions = {}): string {
   const items = buildItems(options);
   if (items.length === 0) return "";
   const text = formatGrid(items, keyStyle, termWidth, maxLines);
-  return style ? styleText(style, text) : text;
+  return applyStyle(text, style);
 }
