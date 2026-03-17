@@ -39,7 +39,7 @@ pnpm add @toiroakr/read-multiline
 ```typescript
 import { readMultiline } from "@toiroakr/read-multiline";
 
-const [value, error] = await readMultiline({
+const [value, error] = await readMultiline("", {
   prefix: "> ",
   history: { filePath: "./history.json" },
   maxLines: 10,
@@ -62,17 +62,17 @@ import { createPrompt, presets } from "@toiroakr/read-multiline";
 
 // inquirer-style prompt
 const askInquirer = createPrompt(presets.inquirer);
-const [name] = await askInquirer({ prompt: "What is your name?" });
-const [bio] = await askInquirer({ prompt: "Tell me about yourself:" });
+const [name] = await askInquirer("What is your name?");
+const [bio] = await askInquirer("Tell me about yourself:");
 
 // clack-style prompt
 const askClack = createPrompt(presets.clack);
-const [input] = await askClack({ prompt: "Enter some text:" });
+const [input] = await askClack("Enter some text:");
 ```
 
 ## API
 
-### `readMultiline(options?): Promise<ReadMultilineResult>`
+### `readMultiline(prompt, options?): Promise<ReadMultilineResult>`
 
 Returns a `ReadMultilineResult` tuple:
 
@@ -81,10 +81,13 @@ Returns a `ReadMultilineResult` tuple:
 - `[null, { kind: "eof" }]` on Ctrl+D with empty input (unless `onError` is set)
 - `[string, error]` when `onError` is set — receives current input and the error
 
+| Parameter | Type     | Default | Description                                   |
+| --------- | -------- | ------- | --------------------------------------------- |
+| `prompt`  | `string` | `""`    | Prompt message on the header line above input |
+
 | Option                   | Type                                             | Default          | Description                                                                                                          |
 | ------------------------ | ------------------------------------------------ | ---------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `prefix`                 | `Stateful<string>`                               | `"> "`           | Prefix before the prompt message. Can be state-dependent                                                             |
-| `prompt`                 | `string`                                         | `""`             | Prompt message on the header line above input                                                                        |
 | `linePrefix`             | `Stateful<string>`                               | same as `prefix` | Prefix for each input line. Can be state-dependent                                                                   |
 | `theme`                  | `PromptTheme`                                    | `undefined`      | Theme for styling prompt elements                                                                                    |
 | `input`                  | `TTYInput`                                       | `process.stdin`  | Input stream                                                                                                         |
@@ -158,8 +161,8 @@ Create a reusable prompt function with shared configuration. Per-call options ar
 import { createPrompt, presets } from "@toiroakr/read-multiline";
 
 const ask = createPrompt(presets.inquirer);
-const [name] = await ask({ prompt: "Name:" });
-const [email] = await ask({ prompt: "Email:" });
+const [name] = await ask("Name:");
+const [email] = await ask("Email:");
 ```
 
 ### Presets
@@ -269,10 +272,10 @@ Use `disabledKeys` to ignore specific key combinations:
 
 ```typescript
 // Disable Ctrl+J (e.g., if it conflicts with your app)
-await readMultiline({ disabledKeys: ["ctrl+j"] });
+await readMultiline("", { disabledKeys: ["ctrl+j"] });
 
 // Only allow Shift+Enter and Ctrl+J as newline
-await readMultiline({ disabledKeys: ["ctrl+enter", "cmd+enter", "alt+enter"] });
+await readMultiline("", { disabledKeys: ["ctrl+enter", "cmd+enter", "alt+enter"] });
 ```
 
 Valid values: `"shift+enter"`, `"ctrl+enter"`, `"cmd+enter"`, `"alt+enter"`, `"ctrl+j"`
@@ -283,10 +286,10 @@ Pass an array for in-memory history, or a `HistoryOptions` object for file-based
 
 ```typescript
 // In-memory history
-await readMultiline({ history: ["previous input"] });
+await readMultiline("", { history: ["previous input"] });
 
 // File-based persistent history
-await readMultiline({
+await readMultiline("", {
   history: { filePath: "~/.myapp/history.json", maxEntries: 50 },
 });
 ```
@@ -312,10 +315,10 @@ Use `footer` for custom text, `helpFooter` for auto-generated key bindings help:
 
 ```typescript
 // Auto-generated help footer (detects terminal capabilities)
-await readMultiline({ helpFooter: true });
+await readMultiline("", { helpFooter: true });
 
 // Customized help footer
-await readMultiline({
+await readMultiline("", {
   helpFooter: {
     items: ["submit", "newline", "undo"], // Choose actions and order (default: ["submit", "newline", "undo", "cancel", "eof"])
     maxKeysPerAction: 3, // Show up to 3 key alternatives per action (default: 2)
@@ -326,7 +329,7 @@ await readMultiline({
 });
 
 // Custom footer + help footer together
-await readMultiline({
+await readMultiline("", {
   footer: "Type your message below",
   helpFooter: true,
 });

@@ -72,17 +72,11 @@ export interface ReadMultilineOptions {
   /** Prefix displayed before the prompt message (default: "> "). Can be state-dependent. */
   prefix?: Stateful<string>;
 
-  /** Prompt message displayed on the header line above input */
-  prompt?: string;
-
   /** Prefix displayed on each input line (default: prefix value). Can be state-dependent. */
   linePrefix?: Stateful<string>;
 
   /** Theme for styling prompt elements */
   theme?: PromptTheme;
-
-  /** Prompt displayed on continuation lines (2nd line onwards) */
-  linePrompt?: string;
 
   /** Input stream (default: process.stdin) */
   input?: TTYInput;
@@ -224,7 +218,7 @@ export interface Snapshot {
 }
 
 /** Shared configuration that can be reused across multiple readMultiline calls via createPrompt */
-export type SharedConfig = Omit<ReadMultilineOptions, "prompt">;
+export type SharedConfig = ReadMultilineOptions;
 
 export interface EditorState {
   // Buffer

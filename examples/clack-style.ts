@@ -21,7 +21,7 @@ async function main() {
   const bio = await p.text({ message: "Tell me about yourself:" });
   if (p.isCancel(bio)) return p.cancel("Cancelled.");
 
-  const [multiline] = await ask({ prompt: "Any multiline input:" });
+  const [multiline] = await ask("Any multiline input:");
 
   const color = await p.select({
     message: "Pick a color:",
@@ -33,7 +33,7 @@ async function main() {
   });
   if (p.isCancel(color)) return p.cancel("Cancelled.");
 
-  const [feedback] = await ask({ prompt: "Any feedback?" });
+  const [feedback] = await ask("Any feedback?");
 
   p.outro([`Done!`, JSON.stringify({ name, bio, multiline, color, feedback }, null, 2)].join("\n"));
 }

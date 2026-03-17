@@ -55,15 +55,15 @@ export { presets };
  * @example
  * ```typescript
  * const ask = createPrompt({ prefix: "? ", theme: { prompt: "bold" } });
- * const name = await ask({ prompt: "Name:" });
- * const email = await ask({ prompt: "Email:" });
+ * const [name] = await ask("Name:");
+ * const [email] = await ask("Email:");
  * ```
  */
 export function createPrompt(
   shared: SharedConfig,
-): (options?: ReadMultilineOptions) => Promise<ReadMultilineResult> {
-  return (options: ReadMultilineOptions = {}): Promise<ReadMultilineResult> => {
-    return readMultiline({ ...shared, ...options });
+): (prompt: string, options?: ReadMultilineOptions) => Promise<ReadMultilineResult> {
+  return (prompt: string, options: ReadMultilineOptions = {}): Promise<ReadMultilineResult> => {
+    return readMultiline(prompt, { ...shared, ...options });
   };
 }
 
@@ -95,14 +95,17 @@ export function createPrompt(
  *
  * For non-TTY input (pipes), reads all lines until EOF.
  */
-export function readMultiline(options: ReadMultilineOptions = {}): Promise<ReadMultilineResult> {
-  const { input = process.stdin as TTYInput, output = process.stdout } = options;
+export function readMultiline(
+  prompt: string,
+  options?: ReadMultilineOptions,
+): Promise<ReadMultilineResult> {
+  const { input = process.stdin as TTYInput, output = process.stdout } = options ?? {};
 
   if (!input.isTTY) {
     return readFromPipe(input);
   }
 
-  return readFromTTY(input, output, options);
+  return readFromTTY(input, output, prompt, options ?? {});
 }
 
 function readFromPipe(input: NodeJS.ReadableStream): Promise<ReadMultilineResult> {
@@ -120,12 +123,13 @@ function readFromPipe(input: NodeJS.ReadableStream): Promise<ReadMultilineResult
 function readFromTTY(
   input: TTYInput,
   output: NodeJS.WritableStream,
+  prompt: string,
   options: ReadMultilineOptions,
 ): Promise<ReadMultilineResult> {
   return new Promise((resolve) => {
+    const rawPrompt = prompt;
     const {
       prefix: prefixOption = "> ",
-      prompt: rawPrompt = "",
       linePrefix: linePrefixOption,
       theme,
       initialValue,

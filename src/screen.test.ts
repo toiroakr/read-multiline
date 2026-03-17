@@ -87,7 +87,7 @@ describe("Screen rendering (virtual terminal)", () => {
   // New layout: prompt header on line 0 (prefix + prompt), input lines below with linePrefix
 
   it("displays prefix header and typed text", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -105,7 +105,7 @@ describe("Screen rendering (virtual terminal)", () => {
   });
 
   it("displays continuation lines with linePrefix", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -127,7 +127,7 @@ describe("Screen rendering (virtual terminal)", () => {
   });
 
   it("displays three lines correctly", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -154,7 +154,7 @@ describe("Screen rendering (virtual terminal)", () => {
   // --- Cursor position after movement ---
 
   it("cursor moves left correctly", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -173,7 +173,7 @@ describe("Screen rendering (virtual terminal)", () => {
   });
 
   it("cursor moves to previous line end on Left at line start", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -196,7 +196,7 @@ describe("Screen rendering (virtual terminal)", () => {
   });
 
   it("cursor moves between lines with Up/Down", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -226,7 +226,7 @@ describe("Screen rendering (virtual terminal)", () => {
   // --- Insert at cursor position ---
 
   it("inserts character at cursor mid-position and redraws correctly", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -248,7 +248,7 @@ describe("Screen rendering (virtual terminal)", () => {
   // --- Backspace rendering ---
 
   it("backspace at end redraws correctly", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -266,7 +266,7 @@ describe("Screen rendering (virtual terminal)", () => {
   });
 
   it("backspace at mid-position redraws without artifacts", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -285,7 +285,7 @@ describe("Screen rendering (virtual terminal)", () => {
   });
 
   it("backspace merging lines redraws correctly", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -312,7 +312,7 @@ describe("Screen rendering (virtual terminal)", () => {
   // --- Ctrl+W rendering ---
 
   it("Ctrl+W redraws without artifacts", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -333,7 +333,7 @@ describe("Screen rendering (virtual terminal)", () => {
   // --- Full-width character rendering ---
 
   it("full-width characters occupy 2 columns on screen", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -351,7 +351,7 @@ describe("Screen rendering (virtual terminal)", () => {
   });
 
   it("cursor position correct after Left on full-width character", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -374,7 +374,7 @@ describe("Screen rendering (virtual terminal)", () => {
   });
 
   it("backspace on full-width character clears 2 columns", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -394,7 +394,7 @@ describe("Screen rendering (virtual terminal)", () => {
   });
 
   it("full-width insert at mid-position redraws correctly", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -414,7 +414,7 @@ describe("Screen rendering (virtual terminal)", () => {
   });
 
   it("mixed half-width and full-width cursor tracking", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -438,7 +438,7 @@ describe("Screen rendering (virtual terminal)", () => {
   // --- Line splitting rendering ---
 
   it("Shift+Enter at mid-position splits line and redraws", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -463,7 +463,7 @@ describe("Screen rendering (virtual terminal)", () => {
   // --- Word jump cursor position ---
 
   it("Alt+Left positions cursor at word start correctly", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -483,7 +483,7 @@ describe("Screen rendering (virtual terminal)", () => {
   // --- Home/End cursor position ---
 
   it("Home moves cursor to line start, End to line end", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -505,7 +505,7 @@ describe("Screen rendering (virtual terminal)", () => {
   // --- Cmd+Up/Down cursor position ---
 
   it("Cmd+Up/Down jumps to buffer start/end with correct cursor", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -530,7 +530,7 @@ describe("Screen rendering (virtual terminal)", () => {
   // --- Paste rendering ---
 
   it("multi-line paste renders all lines correctly", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -553,7 +553,7 @@ describe("Screen rendering (virtual terminal)", () => {
   // --- Prefix width edge cases ---
 
   it("wide prefix offsets cursor correctly", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -572,7 +572,7 @@ describe("Screen rendering (virtual terminal)", () => {
   });
 
   it("no prefix starts cursor at column 0", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -592,7 +592,7 @@ describe("Screen rendering (virtual terminal)", () => {
   // --- Delete key rendering ---
 
   it("Delete key removes character ahead and redraws", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -612,7 +612,7 @@ describe("Screen rendering (virtual terminal)", () => {
   });
 
   it("Delete at line end merges lines and redraws", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -638,7 +638,7 @@ describe("Screen rendering (virtual terminal)", () => {
   // --- Ctrl+U / Ctrl+K rendering ---
 
   it("Ctrl+U clears from cursor to line start", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -661,7 +661,7 @@ describe("Screen rendering (virtual terminal)", () => {
   });
 
   it("Ctrl+K clears from cursor to line end", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -686,7 +686,7 @@ describe("Screen rendering (virtual terminal)", () => {
   // --- initialValue rendering ---
 
   it("initialValue renders correctly", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -704,7 +704,7 @@ describe("Screen rendering (virtual terminal)", () => {
   });
 
   it("multi-line initialValue renders all lines", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -726,7 +726,7 @@ describe("Screen rendering (virtual terminal)", () => {
   // --- History rendering ---
 
   it("history navigation renders correctly", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -755,7 +755,7 @@ describe("Screen rendering (virtual terminal)", () => {
   // --- Undo / Redo rendering ---
 
   it("undo restores screen correctly", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -783,7 +783,7 @@ describe("Screen rendering (virtual terminal)", () => {
   });
 
   it("redo restores screen correctly", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,
@@ -807,7 +807,7 @@ describe("Screen rendering (virtual terminal)", () => {
   // --- Ctrl+L rendering ---
 
   it("Ctrl+L clears screen and redraws content", async () => {
-    const promise = readMultiline({
+    const promise = readMultiline("", {
       input,
       output: vt.stream,
       helpFooter: false,

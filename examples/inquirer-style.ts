@@ -7,7 +7,7 @@ const ask = createPrompt(presets.inquirer);
 async function main() {
   await input({ message: "What is your name?" });
 
-  await ask({ prompt: "Tell me about yourself:" });
+  await ask("Tell me about yourself:");
 
   await select({
     message: "Pick a color:",
@@ -18,7 +18,7 @@ async function main() {
     ],
   });
 
-  await ask({ prompt: "Any feedback?" });
+  await ask("Any feedback?");
 }
 
 main().catch(() => {});
