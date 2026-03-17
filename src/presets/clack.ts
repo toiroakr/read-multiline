@@ -29,16 +29,16 @@ import type { SharedConfig } from "../types.js";
  */
 export const clack: SharedConfig = {
   prefix: {
-    pending: `${styleText("gray", "│")}\n${styleText("cyan", "◆  ")}`,
-    submitted: `${styleText("gray", "│")}\n${styleText("green", "◇  ")}`,
-    cancelled: `${styleText("gray", "│")}\n${styleText("red", "■  ")}`,
-    error: `${styleText("gray", "│")}\n${styleText("yellow", "▲  ")}`,
+    pending: `${styleText("gray", "│")}\n${styleText("cyan", "◆")}  `,
+    submitted: `${styleText("gray", "│")}\n${styleText("green", "◇")}  `,
+    cancelled: `${styleText("gray", "│")}\n${styleText("red", "■")}  `,
+    error: `${styleText("gray", "│")}\n${styleText("yellow", "▲")}  `,
   },
   linePrefix: {
-    pending: styleText("cyan", "│  "),
-    submitted: styleText("gray", "│  "),
-    cancelled: styleText("gray", "│  "),
-    error: styleText("yellow", "│  "),
+    pending: `${styleText("cyan", "│")}  `,
+    submitted: `${styleText("gray", "│")}  `,
+    cancelled: `${styleText("gray", "│")}  `,
+    error: `${styleText("yellow", "│")}  `,
   },
   footer: styleText("cyan", "└"),
   preferNewlineOnEnter: true,
