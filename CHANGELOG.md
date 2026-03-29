@@ -1,5 +1,11 @@
 # @toiroakr/read-multiline
 
+## 0.2.2
+
+### Patch Changes
+
+- 22a4b48: Add explicit node types to tsconfig.json for TypeScript 6 compatibility
+
 ## 0.2.1
 
 ### Patch Changes

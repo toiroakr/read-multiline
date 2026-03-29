@@ -1,6 +1,6 @@
 {
   "name": "@toiroakr/read-multiline",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Simple multi-line input reader for Node.js terminals",
   "keywords": [
     "cli",
