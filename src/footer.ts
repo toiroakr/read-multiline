@@ -56,24 +56,6 @@ const KITTY_REQUIRED_KEYS: Set<ModifiedEnterKey> = new Set([
   "cmd+enter",
 ]);
 
-/**
- * Keys intercepted by the operating system / terminal on Windows, so they never
- * reach the application. Alt+Enter toggles fullscreen in Windows Console Host,
- * Windows Terminal, conhost, and PowerShell.
- */
-const WIN32_INTERCEPTED_KEYS: Set<ModifiedEnterKey> = new Set(["alt+enter"]);
-
-let _platformOverride: NodeJS.Platform | undefined;
-
-/** @internal Override platform detection for testing */
-export function _setPlatformOverride(platform: NodeJS.Platform | undefined): void {
-  _platformOverride = platform;
-}
-
-function currentPlatform(): NodeJS.Platform {
-  return _platformOverride ?? process.platform;
-}
-
 // --- Kitty protocol detection ---
 
 const DETECT_TIMEOUT_MS = 100;
@@ -143,11 +125,9 @@ export function detectKittyProtocol(
 // ---
 
 function getAvailableModifiedKeys(disabledKeys: Set<ModifiedEnterKey>): ModifiedEnterKey[] {
-  const isWin32 = currentPlatform() === "win32";
   return MODIFIED_KEY_ORDER.filter((k) => {
     if (disabledKeys.has(k)) return false;
     if (_kittySupported === false && KITTY_REQUIRED_KEYS.has(k)) return false;
-    if (isWin32 && WIN32_INTERCEPTED_KEYS.has(k)) return false;
     return true;
   });
 }
