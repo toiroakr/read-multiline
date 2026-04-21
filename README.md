@@ -257,7 +257,8 @@ The following table shows all key bindings and their availability across termina
 | Alt+Enter   | Newline                                | Submit          | All \*        |
 | Ctrl+J      | Newline                                | Newline         | All           |
 
-\* Alt+Enter requires "Use Option as Meta key" on some macOS terminals.
+\* Alt+Enter requires "Use Option as Meta key" on some macOS terminals, and is
+not available on Windows because the OS intercepts it to toggle fullscreen.
 
 #### Editing
 

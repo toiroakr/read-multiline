@@ -123,6 +123,8 @@ export interface ReadMultilineOptions {
    *
    * Ctrl+J (0x0A) always inserts a newline regardless of this setting.
    * Shift+Enter, Ctrl+Enter, Cmd+Enter require the kitty keyboard protocol.
+   * Alt+Enter is intercepted by the OS on Windows to toggle fullscreen and
+   * never reaches the application there.
    * When kitty protocol is not supported, this option falls back to false
    * to ensure Enter=submit and Ctrl+J=newline are always available.
    */

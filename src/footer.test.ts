@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { buildHelpFooter, _resetKittyDetection } from "./footer.js";
+import { buildHelpFooter, _resetKittyDetection, _setPlatformOverride } from "./footer.js";
 
 // Note: styleText strips ANSI codes in non-TTY environments (test).
 // We test content correctness here; style application is tested via styleText's own contract.
@@ -9,10 +9,12 @@ describe("buildHelpFooter", () => {
   // Reset to undefined so all keys are shown by default in tests.
   beforeEach(() => {
     _resetKittyDetection(undefined);
+    _setPlatformOverride(undefined);
   });
 
   afterEach(() => {
     _resetKittyDetection(undefined);
+    _setPlatformOverride(undefined);
   });
 
   describe("default options", () => {
@@ -88,6 +90,34 @@ describe("buildHelpFooter", () => {
       _resetKittyDetection(undefined);
       const footer = buildHelpFooter({ columns: 200 });
       expect(footer).toContain("Shift+Enter/Ctrl+J: newline");
+    });
+  });
+
+  describe("platform: win32", () => {
+    it("excludes Alt+Enter from newline labels because the OS intercepts it for fullscreen", () => {
+      _setPlatformOverride("win32");
+      _resetKittyDetection(false);
+      const footer = buildHelpFooter({ columns: 200, maxKeysPerAction: 5 });
+      expect(footer).not.toContain("Alt+Enter");
+      expect(footer).toContain("Ctrl+J: newline");
+    });
+
+    it("still includes Alt+Enter on non-win32 platforms", () => {
+      _setPlatformOverride("darwin");
+      _resetKittyDetection(false);
+      const footer = buildHelpFooter({ columns: 200 });
+      expect(footer).toContain("Ctrl+J/Alt+Enter: newline");
+    });
+
+    it("omits newline key entirely when Alt+Enter is the only remaining candidate on win32", () => {
+      _setPlatformOverride("win32");
+      _resetKittyDetection(false);
+      const footer = buildHelpFooter({
+        columns: 200,
+        disabledKeys: ["ctrl+j"],
+      });
+      expect(footer).not.toContain("Alt+Enter");
+      expect(footer).not.toContain("newline");
     });
   });
 
