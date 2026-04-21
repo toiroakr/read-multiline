@@ -1346,6 +1346,50 @@ describe("readMultiline (TTY mode)", () => {
       expect(await waitForEntries(filePath, (e) => e.length > 0)).toEqual(["hello"]);
     });
 
+    it("skips empty submissions by default", async () => {
+      const filePath = join(testDir, "history.json");
+      mkdirSync(testDir, { recursive: true });
+      const promise = readMultiline("", {
+        input,
+        output: output.stream,
+        history: { filePath },
+      });
+      input.send(KEY.ENTER);
+      expect(await promise).toEqual(["", null]);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(existsSync(filePath)).toBe(false);
+    });
+
+    it("persists whitespace-only submissions by default", async () => {
+      const filePath = join(testDir, "history.json");
+      mkdirSync(testDir, { recursive: true });
+      const promise = readMultiline("", {
+        input,
+        output: output.stream,
+        history: { filePath },
+      });
+      input.send("   ");
+      input.send(KEY.ENTER);
+      expect(await promise).toEqual(["   ", null]);
+      expect(await waitForEntries(filePath, (e) => e.length > 0)).toEqual(["   "]);
+    });
+
+    it("persists empty submissions when shouldPersist allows it", async () => {
+      const filePath = join(testDir, "history.json");
+      mkdirSync(testDir, { recursive: true });
+      const promise = readMultiline("", {
+        input,
+        output: output.stream,
+        history: {
+          filePath,
+          shouldPersist: () => true,
+        },
+      });
+      input.send(KEY.ENTER);
+      expect(await promise).toEqual(["", null]);
+      expect(await waitForEntries(filePath, (e) => e.length > 0)).toEqual([""]);
+    });
+
     it("skips persistence when shouldPersist returns false", async () => {
       const filePath = join(testDir, "history.json");
       mkdirSync(testDir, { recursive: true });
