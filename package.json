@@ -55,7 +55,7 @@
     "@xterm/headless": "6.0.0",
     "graphql": "16.13.2",
     "graphql-language-service-parser": "1.10.4",
-    "knip": "6.9.0",
+    "knip": "6.10.0",
     "lefthook": "2.1.6",
     "organize-imports-cli": "1.0.2",
     "oxfmt": "0.47.0",
