@@ -313,9 +313,14 @@ function readFromTTY(
       if (submitRender !== "clear") {
         w(state, "\n");
       }
-      if (historyConfig?.filePath && historyConfig.shouldPersist?.(result) !== false) {
-        const maxEntries = historyConfig.maxEntries ?? 100;
-        appendPersistedHistory(historyConfig.filePath, result, maxEntries);
+      if (historyConfig?.filePath) {
+        const persist = historyConfig.shouldPersist
+          ? historyConfig.shouldPersist(result) !== false
+          : result !== "";
+        if (persist) {
+          const maxEntries = historyConfig.maxEntries ?? 100;
+          appendPersistedHistory(historyConfig.filePath, result, maxEntries);
+        }
       }
       resolve([result, null]);
     }

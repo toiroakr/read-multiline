@@ -258,11 +258,13 @@ export interface HistoryOptions {
   maxEntries?: number;
   /**
    * Predicate that decides whether a submitted value should be appended to
-   * persistent history. Return `false` to skip; `true`, `undefined`, or an
-   * omitted callback persist the value as usual.
+   * persistent history. Return `false` to skip; `true` or `undefined` persist
+   * the value.
    *
-   * Useful for excluding REPL meta commands, empty inputs, or other values
-   * that validate successfully but shouldn't be recalled via history navigation.
+   * When the callback is omitted, empty submissions (`""`) are skipped by
+   * default and all other values are persisted. Pass a custom predicate to
+   * override that default, for example to also skip whitespace-only
+   * submissions or REPL meta commands.
    */
   shouldPersist?: (value: string) => boolean;
 }

@@ -339,7 +339,7 @@ await readMultiline("", {
 
 The file is loaded at startup and updated after each submit via a read-modify-write cycle: the current file is re-read, the new entry appended, and the result written through a sibling temp file plus `fs.rename`. This way readers never observe a partial JSON document, and entries appended by concurrent sessions after this session started are preserved. Errors are silently ignored; the parent directory is created automatically.
 
-Use `shouldPersist` to accept values that validate successfully but shouldn't be recalled via history — for example, REPL meta commands or empty submissions:
+By default, empty submissions (`""`) are not persisted. Pass a custom `shouldPersist` to override this. For example, to also skip whitespace-only submissions or REPL meta commands:
 
 ```typescript
 await readMultiline("> ", {
