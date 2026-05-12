@@ -1,5 +1,24 @@
 # @toiroakr/read-multiline
 
+## 0.4.0
+
+### Minor Changes
+
+- d6ac10c: Skip persisting empty submissions (`""`) to the history file by default. Previously
+  a bare Enter produced a `""` entry on disk when `history.filePath` was set; now that
+  entry is dropped unless the caller opts back in by providing their own `shouldPersist`
+  callback (e.g. `shouldPersist: () => true`). Whitespace-only submissions are still
+  persisted by default. Pass a custom predicate such as `(value) => value.trim() !== ""`
+  to trim them as well.
+
+### Patch Changes
+
+- f735375: Apply the `highlight` callback when navigating history. Previously, loading
+  a history entry (via Up/Down, Alt+Up/Down, Ctrl+P/N, or PageUp/PageDown) drew
+  the content with `styledInput` only, bypassing the user-supplied `highlight`
+  function. History content now renders through the same `renderLine` path as
+  other draws, so syntax highlighting is preserved after switching entries.
+
 ## 0.3.2
 
 ### Patch Changes
