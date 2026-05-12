@@ -76,6 +76,9 @@ export function createPrompt(
  * Key bindings (default, preferNewlineOnEnter=false):
  * - Enter: Submit input
  * - Shift+Enter / Ctrl+Enter / Cmd+Enter / Alt+Enter: Insert newline
+ *   (Alt+Enter may be intercepted by Windows Console Host / Windows Terminal
+ *   for fullscreen toggle; use `disabledKeys: ["alt+enter"]` to opt out
+ *   when running under such a terminal)
  * - Ctrl+J: Always insert newline (regardless of preferNewlineOnEnter)
  * - Backspace: Delete character (can merge lines)
  * - Delete: Forward delete character (can merge lines)
@@ -429,7 +432,8 @@ function readFromTTY(
         // ensuring Enter=submit and Ctrl+J=newline are always available.
         // Without kitty, modified Enter keys (Shift/Ctrl/Cmd+Enter) don't work,
         // leaving only Alt+Enter for submit — which requires "Use Option as Meta key"
-        // on macOS Terminal.app and may not work in all environments.
+        // on macOS Terminal.app and may be intercepted by Windows Console Host /
+        // Windows Terminal for fullscreen toggle.
         if (!kittySupported && state.preferNewlineOnEnter) {
           state.preferNewlineOnEnter = false;
           state.keyMap = {};

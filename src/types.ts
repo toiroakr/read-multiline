@@ -123,6 +123,9 @@ export interface ReadMultilineOptions {
    *
    * Ctrl+J (0x0A) always inserts a newline regardless of this setting.
    * Shift+Enter, Ctrl+Enter, Cmd+Enter require the kitty keyboard protocol.
+   * Alt+Enter may be intercepted by Windows Console Host / Windows Terminal
+   * for fullscreen toggle; pass `disabledKeys: ["alt+enter"]` to opt out
+   * when running under such a terminal.
    * When kitty protocol is not supported, this option falls back to false
    * to ensure Enter=submit and Ctrl+J=newline are always available.
    */
