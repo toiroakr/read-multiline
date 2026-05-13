@@ -7,6 +7,7 @@ import * as presets from "./presets/index.js";
 import {
   clearBelowEditor,
   clearScreen,
+  cursorVisualRow,
   renderLine,
   setFooter,
   setStatusWithVisualState,
@@ -282,7 +283,7 @@ function readFromTTY(
 
     /** Erase all editor content (prompt header + input lines + status + footer) from the terminal */
     function clearEditorArea() {
-      const upCount = state.row + state.promptHeaderHeight;
+      const upCount = cursorVisualRow(state, state.row, state.col);
       if (upCount > 0) w(state, `\x1b[${upCount}A`);
       w(state, "\r\x1b[J");
       state.statusText = "";
@@ -342,7 +343,10 @@ function readFromTTY(
         if (cancelRender !== "clear") {
           w(state, "\n");
         }
-        resolveWithError({ kind: "eof", message: "EOF received on empty input" });
+        resolveWithError({
+          kind: "eof",
+          message: "EOF received on empty input",
+        });
       } else {
         handleDelete(state);
       }
@@ -467,7 +471,7 @@ function renderStateChange(
 ): void {
   // Move to top of editor (input lines + prompt header)
   // In inline mode, header is on same line as input, so use 0 for height
-  const upCount = state.row + (state.inlinePrompt ? 0 : state.promptHeaderHeight);
+  const upCount = cursorVisualRow(state, state.row, state.col);
   if (upCount > 0) w(state, `\x1b[${upCount}A`);
   w(state, "\r\x1b[J");
 

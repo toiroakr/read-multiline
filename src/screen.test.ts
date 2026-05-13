@@ -5,8 +5,14 @@ import { readMultiline, type TTYInput } from "./index.js";
 
 // Virtual terminal that feeds ANSI output into @xterm/headless
 function createVirtualTerminal(cols = 80, rows = 24) {
-  const term = new Terminal({ cols, rows, allowProposedApi: true, convertEol: true });
+  const term = new Terminal({
+    cols,
+    rows,
+    allowProposedApi: true,
+    convertEol: true,
+  });
   const stream = {
+    columns: cols,
     write(data: string) {
       term.write(data);
       return true;
@@ -38,6 +44,14 @@ function flush(term: Terminal): Promise<void> {
 // so we also trim trailing spaces from the result.
 function screenLine(term: Terminal, row: number): string {
   return (term.buffer.active.getLine(row)?.translateToString(true) ?? "").trimEnd();
+}
+
+function rawScreenLine(term: Terminal, row: number): string {
+  return term.buffer.active.getLine(row)?.translateToString(false) ?? "";
+}
+
+function isWrappedRow(term: Terminal, row: number): boolean {
+  return term.buffer.active.getLine(row)?.isWrapped ?? false;
 }
 
 function cursorPos(term: Terminal) {
@@ -218,6 +232,33 @@ describe("Screen rendering (virtual terminal)", () => {
     await flush(vt.term);
     // col clamped to min(2, 2) = 2, so linePrefix(2) + 2 = 4, row 2
     expect(cursorPos(vt.term)).toEqual({ x: 4, y: 2 });
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("cursor moves up from a wrapped second line using visual row deltas", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+      linePrefix: "  ",
+    });
+    input.send("abcdefghijk");
+    input.send(KEY.SHIFT_ENTER);
+    input.send("xy");
+    await flush(vt.term);
+
+    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 3 });
+
+    input.send(KEY.UP);
+    await flush(vt.term);
+
+    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 1 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -460,6 +501,38 @@ describe("Screen rendering (virtual terminal)", () => {
     await promise;
   });
 
+  it("Shift+Enter after a soft-wrapped line does not duplicate the first line", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+      linePrefix: "  ",
+    });
+    input.send("abcdefghijk");
+    await flush(vt.term);
+
+    expect(rawScreenLine(vt.term, 1)).toBe("  abcdefghij");
+    expect(rawScreenLine(vt.term, 2).trim()).toBe("k");
+    expect(isWrappedRow(vt.term, 2)).toBe(true);
+    expect(cursorPos(vt.term)).toEqual({ x: 1, y: 2 });
+
+    input.send(KEY.SHIFT_ENTER);
+    await flush(vt.term);
+
+    expect(screenLine(vt.term, 0)).toBe(">");
+    expect(rawScreenLine(vt.term, 1)).toBe("  abcdefghij");
+    expect(rawScreenLine(vt.term, 2)).toContain("k");
+    expect(rawScreenLine(vt.term, 3).trim()).toBe("");
+    expect(cursorPos(vt.term)).toEqual({ x: 2, y: 3 });
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
   // --- Word jump cursor position ---
 
   it("Alt+Left positions cursor at word start correctly", async () => {
@@ -545,6 +618,183 @@ describe("Screen rendering (virtual terminal)", () => {
     expect(screenLine(vt.term, 2)).toBe("  line2");
     expect(screenLine(vt.term, 3)).toBe("  line3");
     expect(cursorPos(vt.term)).toEqual({ x: 7, y: 3 });
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("paste causing soft wrap on the second line does not duplicate the first line", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+      linePrefix: "  ",
+    });
+    input.send("top");
+    input.send(KEY.SHIFT_ENTER);
+    await flush(vt.term);
+
+    input.send("\x1b[200~apple apple \x1b[201~");
+    await flush(vt.term);
+
+    const rows = Array.from({ length: 6 }, (_, row) => ({
+      row,
+      screen: screenLine(vt.term, row),
+      raw: rawScreenLine(vt.term, row),
+      wrapped: isWrappedRow(vt.term, row),
+    }));
+
+    expect(rows).toEqual([
+      { row: 0, screen: ">", raw: ">           ", wrapped: false },
+      { row: 1, screen: "  top", raw: "  top       ", wrapped: false },
+      { row: 2, screen: "  apple appl", raw: "  apple appl", wrapped: false },
+      { row: 3, screen: "e", raw: "e           ", wrapped: true },
+      { row: 4, screen: "", raw: "            ", wrapped: false },
+      { row: 5, screen: "", raw: "            ", wrapped: false },
+    ]);
+    expect(cursorPos(vt.term)).toEqual({ x: 2, y: 3 });
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("typing into a non-last line that wraps preserves the following line", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+      linePrefix: "  ",
+    });
+    input.send("ab");
+    input.send(KEY.SHIFT_ENTER);
+    input.send("second");
+    input.send(KEY.UP);
+    await flush(vt.term);
+
+    // Cursor is now at end of first line (logical row 0, col 2).
+    // Typing characters here causes line 0 to soft-wrap; line 1 ("second")
+    // must be pushed down rather than overwritten by the wrap continuation.
+    input.send("cdefghijk");
+    await flush(vt.term);
+
+    const rows = Array.from({ length: 5 }, (_, row) => ({
+      row,
+      screen: screenLine(vt.term, row),
+      raw: rawScreenLine(vt.term, row),
+      wrapped: isWrappedRow(vt.term, row),
+    }));
+
+    expect(rows).toEqual([
+      { row: 0, screen: ">", raw: ">           ", wrapped: false },
+      { row: 1, screen: "  abcdefghij", raw: "  abcdefghij", wrapped: false },
+      { row: 2, screen: "k", raw: "k           ", wrapped: true },
+      { row: 3, screen: "  second", raw: "  second    ", wrapped: false },
+      { row: 4, screen: "", raw: "            ", wrapped: false },
+    ]);
+    expect(cursorPos(vt.term)).toEqual({ x: 1, y: 2 });
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("typing into a soft wrap keeps the footer below the wrapped input", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+      footer: "FOOT",
+    });
+    input.send("abcdefghijk");
+    await flush(vt.term);
+
+    const rows = Array.from({ length: 5 }, (_, row) => ({
+      row,
+      screen: screenLine(vt.term, row),
+      raw: rawScreenLine(vt.term, row),
+      wrapped: isWrappedRow(vt.term, row),
+    }));
+
+    expect(rows).toEqual([
+      { row: 0, screen: ">", raw: ">           ", wrapped: false },
+      { row: 1, screen: "> abcdefghij", raw: "> abcdefghij", wrapped: false },
+      { row: 2, screen: "k", raw: "k           ", wrapped: true },
+      { row: 3, screen: "FOOT", raw: "FOOT        ", wrapped: false },
+      { row: 4, screen: "", raw: "            ", wrapped: false },
+    ]);
+    expect(cursorPos(vt.term)).toEqual({ x: 1, y: 2 });
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("typing with highlight enabled into a soft wrap preserves the footer", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+      footer: "FOOT",
+      highlight: (line) => line,
+    });
+    input.send("abcdefghijk");
+    await flush(vt.term);
+
+    const rows = Array.from({ length: 5 }, (_, row) => ({
+      row,
+      screen: screenLine(vt.term, row),
+      raw: rawScreenLine(vt.term, row),
+      wrapped: isWrappedRow(vt.term, row),
+    }));
+
+    expect(rows).toEqual([
+      { row: 0, screen: ">", raw: ">           ", wrapped: false },
+      { row: 1, screen: "> abcdefghij", raw: "> abcdefghij", wrapped: false },
+      { row: 2, screen: "k", raw: "k           ", wrapped: true },
+      { row: 3, screen: "FOOT", raw: "FOOT        ", wrapped: false },
+      { row: 4, screen: "", raw: "            ", wrapped: false },
+    ]);
+    expect(cursorPos(vt.term)).toEqual({ x: 1, y: 2 });
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("typing into a soft wrap with footer preserves terminal content above the prompt", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+    vt.stream.write("above\r\n");
+    await flush(vt.term);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+      footer: "FOOT",
+    });
+    input.send("abcdefghijk");
+    await flush(vt.term);
+
+    expect(screenLine(vt.term, 0)).toBe("above");
+    expect(screenLine(vt.term, 1)).toBe(">");
+    expect(screenLine(vt.term, 2)).toBe("> abcdefghij");
+    expect(screenLine(vt.term, 3)).toBe("k");
+    expect(screenLine(vt.term, 4)).toBe("FOOT");
 
     input.send(KEY.ENTER);
     await promise;
@@ -752,6 +1002,48 @@ describe("Screen rendering (virtual terminal)", () => {
     await promise;
   });
 
+  it("history navigation clears correctly when current content has a wrapped earlier line", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+      linePrefix: "  ",
+      history: ["abcdefghijk\nyyy", "z"],
+    });
+
+    // UP -> historyPrev -> loads "z" at cursor=start.
+    input.send(KEY.UP);
+    await flush(vt.term);
+    expect(screenLine(vt.term, 1)).toBe("  z");
+
+    // UP -> historyPrev -> loads "abcdefghijk\nyyy" at cursor=start.
+    // Visual layout: row 1 "  abcdefghij", row 2 "k" (wrapped), row 3 "  yyy".
+    input.send(KEY.UP);
+    await flush(vt.term);
+    expect(screenLine(vt.term, 1)).toBe("  abcdefghij");
+    expect(screenLine(vt.term, 2)).toBe("k");
+    expect(screenLine(vt.term, 3)).toBe("  yyy");
+
+    // Move to the end of the second logical row so historyNext fires
+    // while state.row > 0 AND an earlier line is wrapped above the cursor.
+    input.send(KEY.END);
+    input.send(KEY.DOWN); // moveDown to row=1, col=3 (end of "yyy")
+    input.send(KEY.DOWN); // historyNext -> loads "z" at cursor=end
+    await flush(vt.term);
+
+    // With the bug, leftover "  abcdefghij" and "k" remain at rows 1 and 2,
+    // and "  z" lands on row 3 instead of row 1.
+    expect(screenLine(vt.term, 1)).toBe("  z");
+    expect(screenLine(vt.term, 2)).toBe("");
+    expect(screenLine(vt.term, 3)).toBe("");
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
   // --- Undo / Redo rendering ---
 
   it("undo restores screen correctly", async () => {
@@ -777,6 +1069,35 @@ describe("Screen rendering (virtual terminal)", () => {
     expect(screenLine(vt.term, 1)).toBe("  abc");
     expect(screenLine(vt.term, 2)).toBe(""); // cleared
     expect(cursorPos(vt.term)).toEqual({ x: 5, y: 1 });
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("undo restores correctly when the current screen includes a wrapped earlier line", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+      linePrefix: "  ",
+    });
+    input.send("abcdefghijk");
+    input.send(KEY.SHIFT_ENTER);
+    input.send("x");
+    await flush(vt.term);
+
+    input.send(KEY.CTRL_Z); // undo "x"
+    await flush(vt.term);
+
+    expect(screenLine(vt.term, 0)).toBe(">");
+    expect(rawScreenLine(vt.term, 1)).toBe("  abcdefghij");
+    expect(rawScreenLine(vt.term, 2).trim()).toBe("k");
+    expect(rawScreenLine(vt.term, 3).trim()).toBe("");
+    expect(cursorPos(vt.term)).toEqual({ x: 2, y: 3 });
 
     input.send(KEY.ENTER);
     await promise;
@@ -829,5 +1150,564 @@ describe("Screen rendering (virtual terminal)", () => {
 
     input.send(KEY.ENTER);
     await promise;
+  });
+
+  it("Ctrl+L restores cursor correctly when a later line wraps", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+      linePrefix: "  ",
+    });
+    input.send("ab");
+    input.send(KEY.SHIFT_ENTER);
+    input.send("abcdefghijk");
+    input.send(KEY.UP);
+    await flush(vt.term);
+
+    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 1 });
+
+    input.send(KEY.CTRL_L);
+    await flush(vt.term);
+
+    expect(screenLine(vt.term, 0)).toBe(">");
+    expect(screenLine(vt.term, 1)).toBe("  ab");
+    expect(rawScreenLine(vt.term, 2)).toBe("  abcdefghij");
+    expect(rawScreenLine(vt.term, 3).trim()).toBe("k");
+    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 1 });
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("validation redraw keeps cursor correct when error header grows taller", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(20, 24);
+    vt.stream.write("above\r\n");
+    await flush(vt.term);
+
+    const promise = readMultiline("msg", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: { pending: "? ", submitted: "✔ ", error: "!\n? " },
+      linePrefix: { pending: "> ", submitted: "  ", error: "x " },
+      validate: (value) => (value.length < 3 ? "Too short" : undefined),
+    });
+    input.send("ab");
+    input.send(KEY.ENTER);
+    await flush(vt.term);
+
+    expect(screenLine(vt.term, 0)).toBe("above");
+    expect(screenLine(vt.term, 1)).toBe("!");
+    expect(screenLine(vt.term, 2)).toBe("? msg");
+    expect(screenLine(vt.term, 3)).toBe("x ab");
+    expect(screenLine(vt.term, 4)).toBe("Too short");
+    expect(cursorPos(vt.term)).toEqual({ x: 4, y: 3 });
+
+    input.send("c");
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("submit preserve does not duplicate a wrapped line after Shift+Enter", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: { pending: "> ", submitted: "✔ " },
+      linePrefix: { pending: "  ", submitted: "  " },
+      theme: { submitRender: "preserve" },
+    });
+    input.send("abcdefghijk");
+    input.send(KEY.SHIFT_ENTER);
+    input.send("x");
+    await flush(vt.term);
+
+    input.send(KEY.ENTER);
+    await promise;
+    await flush(vt.term);
+
+    expect(screenLine(vt.term, 0)).toBe("✔");
+    expect(rawScreenLine(vt.term, 1)).toBe("  abcdefghij");
+    expect(rawScreenLine(vt.term, 2).trim()).toBe("k");
+    expect(screenLine(vt.term, 3)).toBe("  x");
+  });
+
+  it("LEFT across a soft-wrap boundary syncs the terminal cursor", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+    });
+    input.send("abcdefghijk");
+    input.send(KEY.LEFT);
+    await flush(vt.term);
+
+    // state.col=10 corresponds to the deferred-wrap position right after "j"
+    // on visual row 1, which is terminal row 1 col 11 (0-indexed col 11 via
+    // explicit \x1b[12G). A naive \x1b[D would leave cursor on row 2 col 0.
+    expect(cursorPos(vt.term)).toEqual({ x: 11, y: 1 });
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("RIGHT across a soft-wrap boundary syncs the terminal cursor", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+    });
+    input.send("abcdefghijk");
+    input.send(KEY.HOME);
+    // From col 0, move right 10 times to reach col 10 (deferred-wrap)
+    for (let i = 0; i < 10; i++) input.send(KEY.RIGHT);
+    await flush(vt.term);
+
+    expect(cursorPos(vt.term)).toEqual({ x: 11, y: 1 });
+
+    input.send(KEY.RIGHT); // col 10 -> 11 (cross wrap boundary)
+    await flush(vt.term);
+
+    // state.col=11 is on visual row 2 col 1 (after wrap)
+    expect(cursorPos(vt.term)).toEqual({ x: 1, y: 2 });
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("delete that ends a soft-wrap reflows the footer up", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+      footer: "FOOT",
+    });
+    input.send("abcdefghijk");
+    input.send(KEY.LEFT); // place cursor before "k" at col 10
+    await flush(vt.term);
+
+    expect(screenLine(vt.term, 1)).toBe("> abcdefghij");
+    expect(screenLine(vt.term, 2)).toBe("k");
+    expect(screenLine(vt.term, 3)).toBe("FOOT");
+
+    input.send(KEY.DELETE);
+    await flush(vt.term);
+
+    expect(screenLine(vt.term, 1)).toBe("> abcdefghij");
+    expect(screenLine(vt.term, 2)).toBe("FOOT");
+    expect(screenLine(vt.term, 3)).toBe("");
+    expect(cursorPos(vt.term)).toEqual({ x: 11, y: 1 });
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("backspace that ends a soft-wrap reflows the footer up", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+      footer: "FOOT",
+    });
+    input.send("abcdefghijk");
+    await flush(vt.term);
+
+    expect(screenLine(vt.term, 1)).toBe("> abcdefghij");
+    expect(screenLine(vt.term, 2)).toBe("k");
+    expect(screenLine(vt.term, 3)).toBe("FOOT");
+
+    input.send(KEY.BACKSPACE);
+    await flush(vt.term);
+
+    expect(screenLine(vt.term, 1)).toBe("> abcdefghij");
+    expect(screenLine(vt.term, 2)).toBe("FOOT");
+    expect(screenLine(vt.term, 3)).toBe("");
+    expect(cursorPos(vt.term)).toEqual({ x: 11, y: 1 });
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("Ctrl+K on a soft-wrapped line clears the wrap continuation", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+      footer: "FOOT",
+    });
+    input.send("abcdefghijklm");
+    input.send(KEY.HOME);
+    for (let i = 0; i < 5; i++) input.send(KEY.RIGHT); // cursor at col 5
+    await flush(vt.term);
+
+    expect(screenLine(vt.term, 1)).toBe("> abcdefghij");
+    expect(screenLine(vt.term, 2)).toBe("klm");
+    expect(screenLine(vt.term, 3)).toBe("FOOT");
+
+    input.send(KEY.CTRL_K);
+    await flush(vt.term);
+
+    expect(screenLine(vt.term, 1)).toBe("> abcde");
+    expect(screenLine(vt.term, 2)).toBe("FOOT");
+    expect(screenLine(vt.term, 3)).toBe("");
+    expect(cursorPos(vt.term)).toEqual({ x: 7, y: 1 });
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("Ctrl+U on a soft-wrapped line clears the wrap continuation", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+      footer: "FOOT",
+    });
+    input.send("abcdefghijklm");
+    // cursor at end (col 13). LEFT 3 times: col 10
+    input.send(KEY.LEFT);
+    input.send(KEY.LEFT);
+    input.send(KEY.LEFT);
+    await flush(vt.term);
+
+    expect(screenLine(vt.term, 1)).toBe("> abcdefghij");
+    expect(screenLine(vt.term, 2)).toBe("klm");
+    expect(screenLine(vt.term, 3)).toBe("FOOT");
+
+    input.send(KEY.CTRL_U);
+    await flush(vt.term);
+
+    // After deleting "abcdefghij", line becomes "klm" -- single visual row
+    expect(screenLine(vt.term, 1)).toBe("> klm");
+    expect(screenLine(vt.term, 2)).toBe("FOOT");
+    expect(screenLine(vt.term, 3)).toBe("");
+    expect(cursorPos(vt.term)).toEqual({ x: 2, y: 1 });
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("backspace merging into a line that grows into a soft-wrap redraws correctly", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+      linePrefix: "  ",
+      footer: "FOOT",
+    });
+    // line 0: 10 chars (just fits visual row 0 with "  " prefix)
+    // line 1: 3 chars
+    input.send("aaaaaaaaaa");
+    input.send(KEY.SHIFT_ENTER);
+    input.send("bbb");
+    input.send(KEY.HOME); // back to col 0 of line 1
+    await flush(vt.term);
+
+    expect(screenLine(vt.term, 1)).toBe("  aaaaaaaaaa");
+    expect(screenLine(vt.term, 2)).toBe("  bbb");
+    expect(screenLine(vt.term, 3)).toBe("FOOT");
+
+    input.send(KEY.BACKSPACE);
+    await flush(vt.term);
+
+    // After merge: lines[0] = "aaaaaaaaaabbb" (13 chars, wraps to 2 visual rows)
+    expect(screenLine(vt.term, 1)).toBe("  aaaaaaaaaa");
+    expect(screenLine(vt.term, 2)).toBe("bbb");
+    expect(screenLine(vt.term, 3)).toBe("FOOT");
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("inserting into a line where the trailing rest now crosses a soft-wrap", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+    });
+    input.send("abcdefghij"); // 10 chars, fits a single row
+    for (let i = 0; i < 5; i++) input.send(KEY.LEFT); // -> state.col = 5
+    await flush(vt.term);
+    expect(screenLine(vt.term, 1)).toBe("> abcdefghij");
+
+    input.send("X"); // line becomes 11 chars, wraps to 2 rows
+    await flush(vt.term);
+    expect(screenLine(vt.term, 1)).toBe("> abcdeXfghi");
+    expect(screenLine(vt.term, 2)).toBe("j");
+
+    // Typing again must land right after 'X'. If the prior insert left the
+    // cursor stuck at the wrap boundary, this char lands in the wrong row.
+    input.send("Y");
+    await flush(vt.term);
+    expect(screenLine(vt.term, 1)).toBe("> abcdeXYfgh");
+    expect(screenLine(vt.term, 2)).toBe("ij");
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("LEFT across a deferred-wrap boundary lands the cursor at the correct column", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+    });
+    // 14 chars => row 1 "> abcdefghij" + row 2 "klmn".
+    // The wrap boundary sits between state.col=10 (col 12 with pending wrap)
+    // and state.col=11 (col 2 of row 2).
+    input.send("abcdefghijklmn");
+    for (let i = 0; i < 9; i++) input.send(KEY.LEFT); // -> state.col = 5
+    await flush(vt.term);
+
+    // state.col=5 must place the cursor right after 'e' on row 1.
+    // 1-indexed col 8 = 0-indexed col 7.
+    expect(cursorPos(vt.term)).toEqual({ x: 7, y: 1 });
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("Delete in the middle of a line whose tail crosses a soft-wrap keeps the cursor", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+    });
+    input.send("abcdefghijklmn"); // 14 chars, wraps to 2 visual rows
+    // Move cursor back to col 5 (right after 'e').
+    for (let i = 0; i < 9; i++) input.send(KEY.LEFT);
+    await flush(vt.term);
+
+    expect(screenLine(vt.term, 1)).toBe("> abcdefghij");
+    expect(screenLine(vt.term, 2)).toBe("klmn");
+
+    input.send(KEY.DELETE); // deletes 'f' -> line stays 2 visual rows
+    await flush(vt.term);
+    expect(screenLine(vt.term, 1)).toBe("> abcdeghijk");
+    expect(screenLine(vt.term, 2)).toBe("lmn");
+
+    // Typing now must insert right after 'e'. If the prior delete left the
+    // cursor stuck at the wrap boundary, the new char lands in the wrong row.
+    input.send("X");
+    await flush(vt.term);
+    expect(screenLine(vt.term, 1)).toBe("> abcdeXghij");
+    expect(screenLine(vt.term, 2)).toBe("klmn");
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("Backspace in the middle of a soft-wrapped line keeps the cursor on the correct row", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+    });
+    input.send("abcdefghijklmn"); // 14 chars, wraps to 2 visual rows
+    // Move cursor back to col 5 (right after 'e').
+    for (let i = 0; i < 9; i++) input.send(KEY.LEFT);
+    await flush(vt.term);
+
+    expect(screenLine(vt.term, 1)).toBe("> abcdefghij");
+    expect(screenLine(vt.term, 2)).toBe("klmn");
+
+    input.send(KEY.BACKSPACE); // deletes 'e' -> line stays 2 visual rows
+    await flush(vt.term);
+    expect(screenLine(vt.term, 1)).toBe("> abcdfghijk");
+    expect(screenLine(vt.term, 2)).toBe("lmn");
+
+    // Typing now must insert right after 'd'. If the prior backspace left the
+    // cursor stuck at the wrap boundary, the new char lands in the wrong row.
+    input.send("X");
+    await flush(vt.term);
+    expect(screenLine(vt.term, 1)).toBe("> abcdXfghij");
+    expect(screenLine(vt.term, 2)).toBe("klmn");
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("Ctrl+W in the middle of a soft-wrapped line with trailing rest", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+    });
+    input.send("abc def gh ijklmnop"); // 19 chars, wraps to 2 visual rows
+    // Move cursor to col 7 (right after 'f' in "def").
+    for (let i = 0; i < 12; i++) input.send(KEY.LEFT);
+    await flush(vt.term);
+
+    expect(screenLine(vt.term, 1)).toBe("> abc def gh");
+    expect(screenLine(vt.term, 2)).toBe(" ijklmnop");
+
+    input.send("\x17"); // Ctrl+W deletes "def" -> "abc  gh ijklmnop"
+    await flush(vt.term);
+    expect(screenLine(vt.term, 1)).toBe("> abc  gh ij");
+    expect(screenLine(vt.term, 2)).toBe("klmnop");
+
+    // Typing now must insert at state.col=4 (between the two spaces).
+    // If the prior delete left the cursor on the wrong row, 'X' lands elsewhere.
+    input.send("X");
+    await flush(vt.term);
+    expect(screenLine(vt.term, 1)).toBe("> abc X gh i");
+    expect(screenLine(vt.term, 2)).toBe("jklmnop");
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("Ctrl+W on a soft-wrapped line clears the wrap continuation", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+      footer: "FOOT",
+    });
+    // Two words separated by a space; deleting the second word collapses wrap.
+    input.send("hello worldxyzab");
+    await flush(vt.term);
+
+    // hello worldxyzab => 16 chars + "> " (2) = 18 chars => visual rows 1 and 2
+    expect(screenLine(vt.term, 1)).toBe("> hello worl");
+    expect(screenLine(vt.term, 2)).toBe("dxyzab");
+    expect(screenLine(vt.term, 3)).toBe("FOOT");
+
+    input.send(KEY.CTRL_W);
+    await flush(vt.term);
+
+    // After Ctrl+W: "hello " remains (deletes "worldxyzab"). Fits single row.
+    expect(screenLine(vt.term, 1)).toBe("> hello");
+    expect(screenLine(vt.term, 2)).toBe("FOOT");
+    expect(screenLine(vt.term, 3)).toBe("");
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("paste does not emit full-redraw escape sequences while isPasting is true", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+      footer: "FOOT",
+    });
+    input.send("x");
+    await flush(vt.term);
+
+    const writes: string[] = [];
+    const origWrite = vt.stream.write.bind(vt.stream);
+    (vt.stream as { write: (data: string) => boolean }).write = (data: string) => {
+      writes.push(data);
+      return origWrite(data);
+    };
+
+    input.send("\x1b[200~");
+    await flush(vt.term);
+    const startIdx = writes.length;
+    // Paste 13 chars to force the soft-wrap boundary to move during paste.
+    input.send("abcdefghijklm");
+    await flush(vt.term);
+    const middleWrites = writes.slice(startIdx).join("");
+    input.send("\x1b[201~");
+    await flush(vt.term);
+
+    (vt.stream as { write: (data: string) => boolean }).write = origWrite;
+
+    // While isPasting is true, the optimization in input.ts is supposed to
+    // batch redraws and let the post-paste clearScreen do the work. The
+    // wrap-detection redrawFrom branch must therefore not run mid-paste,
+    // which would emit \x1b[J (erase below) among other heavy sequences.
+    expect(middleWrites).not.toContain("\x1b[J");
+
+    input.send(KEY.ENTER);
+    await promise;
+  });
+
+  it("default submit clear fully clears wrapped editor content", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12, 24);
+    vt.stream.write("above\r\n");
+    await flush(vt.term);
+
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      helpFooter: false,
+      prefix: "> ",
+    });
+    input.send("abcdefghijk");
+    await flush(vt.term);
+
+    input.send(KEY.ENTER);
+    await promise;
+    await flush(vt.term);
+
+    expect(screenLine(vt.term, 0)).toBe("above");
+    expect(screenLine(vt.term, 1)).toBe("");
+    expect(screenLine(vt.term, 2)).toBe("");
   });
 });

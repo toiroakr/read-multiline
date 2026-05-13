@@ -53,9 +53,105 @@ function rowStartOffset(state: EditorState, r: number): number {
   return state.inlinePrompt && r === 0 ? getPromptHeaderWidth(state) : pW(state);
 }
 
+function terminalColumns(state: EditorState): number | null {
+  const output = state.output as NodeJS.WritableStream & { columns?: number };
+  return typeof output.columns === "number" && output.columns > 0 ? output.columns : null;
+}
+
+function clampRow(state: EditorState, row: number): number {
+  return Math.max(0, Math.min(row, state.lines.length - 1));
+}
+
+function clampCol(state: EditorState, row: number, col: number): number {
+  const safeRow = clampRow(state, row);
+  return Math.max(0, Math.min(col, state.lines[safeRow].length));
+}
+
+function visualRowOffset(state: EditorState, row: number, col: number): number {
+  const safeRow = clampRow(state, row);
+  const safeCol = clampCol(state, safeRow, col);
+  const cols = terminalColumns(state);
+  if (!cols) return 0;
+  const width =
+    rowStartOffset(state, safeRow) + stringWidth(state.lines[safeRow].slice(0, safeCol));
+  return width > 0 ? Math.floor((width - 1) / cols) : 0;
+}
+
+function lineVisualRows(state: EditorState, row: number): number {
+  const safeRow = clampRow(state, row);
+  return visualRowOffset(state, safeRow, state.lines[safeRow].length) + 1;
+}
+
+function firstVisualRow(
+  state: EditorState,
+  row: number,
+  headerHeight = state.promptHeaderHeight,
+): number {
+  let visualRow = state.inlinePrompt ? 0 : headerHeight;
+  const limit = Math.max(0, Math.min(row, state.lines.length));
+  for (let index = 0; index < limit; index++) {
+    visualRow += lineVisualRows(state, index);
+  }
+  return visualRow;
+}
+
+export function cursorVisualRow(
+  state: EditorState,
+  row: number,
+  col: number,
+  headerHeight = state.promptHeaderHeight,
+): number {
+  if (row >= state.lines.length) return firstVisualRow(state, row, headerHeight);
+  const safeRow = clampRow(state, row);
+  return firstVisualRow(state, safeRow, headerHeight) + visualRowOffset(state, safeRow, col);
+}
+
+/** Visual row of the editor's first logical row, col 0. */
+export function editorTopVisualRow(state: EditorState): number {
+  return state.inlinePrompt ? 0 : state.promptHeaderHeight;
+}
+
+/**
+ * Reposition the cursor back to (state.row, state.col) after writing `advanced`
+ * display columns from the cursor's original position at (state.row, state.col).
+ * Handles soft-wrap reflow that bare `\x1b[<n>D` does not.
+ */
+export function rewindAfterAdvance(state: EditorState, advanced: number): void {
+  if (advanced <= 0) return;
+  const cols = terminalColumns(state);
+  const targetTCol = tCol(state, state.row, state.col);
+  if (cols === null) {
+    w(state, `\x1b[${advanced}D`);
+    return;
+  }
+  const totalCols = targetTCol - 1 + advanced;
+  let rowsDown = Math.floor(totalCols / cols);
+  // Deferred-wrap edge: writing exactly cols*k chars leaves the cursor on the
+  // last column of row k-1 (relative) with pending wrap, not on col 0 of row k.
+  if (totalCols > 0 && totalCols % cols === 0) rowsDown -= 1;
+  if (rowsDown > 0) w(state, `\x1b[${rowsDown}A`);
+  w(state, `\x1b[${targetTCol}G`);
+}
+
+export function lastVisualRow(state: EditorState): number {
+  return (
+    firstVisualRow(state, state.lines.length - 1) +
+    lineVisualRows(state, state.lines.length - 1) -
+    1
+  );
+}
+
 /** Get 1-based terminal column from line start to code unit index, accounting for display width */
 export function tCol(state: EditorState, r: number, c: number): number {
-  return rowStartOffset(state, r) + stringWidth(state.lines[r].slice(0, c)) + 1;
+  const safeRow = clampRow(state, r);
+  const safeCol = clampCol(state, safeRow, c);
+  const width =
+    rowStartOffset(state, safeRow) + stringWidth(state.lines[safeRow].slice(0, safeCol));
+  const cols = terminalColumns(state);
+  if (!cols) return width + 1;
+  if (width === 0) return 1;
+  const remainder = width % cols;
+  return remainder === 0 ? cols : remainder + 1;
 }
 
 /** Style input text according to the theme */
@@ -65,7 +161,9 @@ export function styledInput(state: EditorState, text: string): string {
 
 /** Move terminal cursor from current position to (newRow, newCol) */
 export function moveTo(state: EditorState, newRow: number, newCol: number): void {
-  const dr = newRow - state.row;
+  const currentVisualRow = cursorVisualRow(state, state.row, state.col);
+  const newVisualRow = cursorVisualRow(state, newRow, newCol);
+  const dr = newVisualRow - currentVisualRow;
   if (dr < 0) w(state, `\x1b[${-dr}A`);
   else if (dr > 0) w(state, `\x1b[${dr}B`);
   w(state, `\x1b[${tCol(state, newRow, newCol)}G`);
@@ -77,8 +175,9 @@ export function moveTo(state: EditorState, newRow: number, newCol: number): void
 export function drawBelowEditor(state: EditorState): void {
   if (!state.statusText && !state.footerText) return;
 
-  const endRow = state.lines.length - 1;
-  const dr = endRow - state.row;
+  const currentVisualRow = cursorVisualRow(state, state.row, state.col);
+  const endVisualRow = lastVisualRow(state);
+  const dr = endVisualRow - currentVisualRow;
   if (dr > 0) w(state, `\x1b[${dr}B`);
   else if (dr < 0) w(state, `\x1b[${-dr}A`);
 
@@ -110,19 +209,20 @@ export function drawBelowEditor(state: EditorState): void {
     }
   }
 
-  const upCount = endRow - state.row + linesBelow;
+  const upCount = endVisualRow - currentVisualRow + linesBelow;
   if (upCount > 0) w(state, `\x1b[${upCount}A`);
   w(state, `\x1b[${tCol(state, state.row, state.col)}G`);
 }
 
 /** Clear everything below the editor (status + footer) and return cursor to position */
 function clearBelowAndReturn(state: EditorState): void {
-  const endRow = state.lines.length - 1;
-  const dr = endRow - state.row;
+  const currentVisualRow = cursorVisualRow(state, state.row, state.col);
+  const endVisualRow = lastVisualRow(state);
+  const dr = endVisualRow - currentVisualRow;
   if (dr > 0) w(state, `\x1b[${dr}B`);
   else if (dr < 0) w(state, `\x1b[${-dr}A`);
   w(state, "\r\n\x1b[J");
-  const upCount = endRow + 1 - state.row;
+  const upCount = endVisualRow + 1 - currentVisualRow;
   if (upCount > 0) w(state, `\x1b[${upCount}A`);
   w(state, `\x1b[${tCol(state, state.row, state.col)}G`);
 }
@@ -199,17 +299,28 @@ export function setStatusWithVisualState(
   }
 }
 
-/** Redraw all lines from fromRow onwards, placing cursor at (targetRow, targetCol) */
+/**
+ * Redraw all lines from fromRow onwards, placing cursor at (targetRow, targetCol).
+ *
+ * `previousCursorVisualRow` overrides the source of the cursor-rewind delta. Pass it when
+ * `state.lines` has already been edited but the terminal cursor is still where it was
+ * *before* the edit (e.g. line-shrinking deletions where computing from the new lines
+ * would underestimate the rewind distance).
+ */
 export function redrawFrom(
   state: EditorState,
   fromRow: number,
   targetRow: number,
   targetCol: number,
+  options?: { previousCursorVisualRow?: number },
 ): void {
   beginBatch(state);
-  const dr = state.row - fromRow;
-  if (dr > 0) w(state, `\x1b[${dr}A`);
-  else if (dr < 0) w(state, `\x1b[${-dr}B`);
+  const currentVisualRow =
+    options?.previousCursorVisualRow ?? cursorVisualRow(state, state.row, state.col);
+  const fromVisualRow = firstVisualRow(state, fromRow);
+  const dr = fromVisualRow - currentVisualRow;
+  if (dr < 0) w(state, `\x1b[${-dr}A`);
+  else if (dr > 0) w(state, `\x1b[${dr}B`);
   w(state, `\x1b[${tCol(state, fromRow, 0)}G`);
 
   w(state, "\x1b[J");
@@ -221,8 +332,10 @@ export function redrawFrom(
     w(state, "\n" + state.styledLinePrefix + renderLine(state, i));
   }
 
-  const endRow = state.lines.length - 1;
-  if (endRow > targetRow) w(state, `\x1b[${endRow - targetRow}A`);
+  const endVisualRow = lastVisualRow(state);
+  const targetVisualRow = cursorVisualRow(state, targetRow, targetCol);
+  if (endVisualRow > targetVisualRow) w(state, `\x1b[${endVisualRow - targetVisualRow}A`);
+  else if (endVisualRow < targetVisualRow) w(state, `\x1b[${targetVisualRow - endVisualRow}B`);
   w(state, `\x1b[${tCol(state, targetRow, targetCol)}G`);
 
   state.row = targetRow;
@@ -239,7 +352,12 @@ export function redrawFrom(
  */
 function fullRedraw(state: EditorState, rewindHeaderHeight?: number): void {
   beginBatch(state);
-  const upCount = state.row + (rewindHeaderHeight ?? state.promptHeaderHeight);
+  const upCount = cursorVisualRow(
+    state,
+    state.row,
+    state.col,
+    rewindHeaderHeight ?? state.promptHeaderHeight,
+  );
   if (upCount > 0) w(state, `\x1b[${upCount}A`);
   w(state, "\r");
 
@@ -270,8 +388,10 @@ function fullRedraw(state: EditorState, rewindHeaderHeight?: number): void {
     w(state, "\n" + state.styledLinePrefix + renderLine(state, i) + "\x1b[K");
   }
   w(state, "\x1b[J");
-  const endRow = state.lines.length - 1;
-  if (endRow > state.row) w(state, `\x1b[${endRow - state.row}A`);
+  const endVisualRow = lastVisualRow(state);
+  const targetVisualRow = cursorVisualRow(state, state.row, state.col);
+  if (endVisualRow > targetVisualRow) w(state, `\x1b[${endVisualRow - targetVisualRow}A`);
+  else if (endVisualRow < targetVisualRow) w(state, `\x1b[${targetVisualRow - endVisualRow}B`);
   w(state, `\x1b[${tCol(state, state.row, state.col)}G`);
   drawBelowEditor(state);
   flushBatch(state);
@@ -285,9 +405,12 @@ export function clearScreen(state: EditorState): void {
 /** Restore editor state from a snapshot and redraw */
 export function restoreSnapshot(state: EditorState, snap: Snapshot): void {
   beginBatch(state);
+  const currentVisualRow = cursorVisualRow(state, state.row, state.col);
+  const inputStartVisualRow = state.inlinePrompt ? 0 : state.promptHeaderHeight;
   state.lines.length = 0;
   state.lines.push(...snap.lines);
-  if (state.row > 0) w(state, `\x1b[${state.row}A`);
+  const upToInputStart = currentVisualRow - inputStartVisualRow;
+  if (upToInputStart > 0) w(state, `\x1b[${upToInputStart}A`);
   w(state, "\r");
   // Position cursor after row-0's leading segment: prompt header in inline mode,
   // linePrefix otherwise. The header/prefix is already on-screen and must not be
@@ -299,8 +422,10 @@ export function restoreSnapshot(state: EditorState, snap: Snapshot): void {
   for (let i = 1; i < state.lines.length; i++) {
     w(state, "\n" + state.styledLinePrefix + renderLine(state, i));
   }
-  const endRow = state.lines.length - 1;
-  if (endRow > snap.row) w(state, `\x1b[${endRow - snap.row}A`);
+  const endVisualRow = lastVisualRow(state);
+  const targetVisualRow = cursorVisualRow(state, snap.row, snap.col);
+  if (endVisualRow > targetVisualRow) w(state, `\x1b[${endVisualRow - targetVisualRow}A`);
+  else if (endVisualRow < targetVisualRow) w(state, `\x1b[${targetVisualRow - endVisualRow}B`);
   w(state, `\x1b[${tCol(state, snap.row, snap.col)}G`);
   state.row = snap.row;
   state.col = snap.col;
@@ -312,8 +437,10 @@ export function restoreSnapshot(state: EditorState, snap: Snapshot): void {
 export function redrawAfterDelete(state: EditorState, deletedWidth: number): void {
   const rest = state.lines[state.row].slice(state.col);
   const restW = stringWidth(rest);
-  w(
-    state,
-    `\x1b[${deletedWidth}D${styledInput(state, rest)}${" ".repeat(deletedWidth)}\x1b[${restW + deletedWidth}D`,
-  );
+  // Pre-call cursor sits `deletedWidth` cells to the right of (row, col).
+  // Reflow upward correctly if that distance crossed a soft-wrap.
+  if (deletedWidth > 0) rewindAfterAdvance(state, deletedWidth);
+  w(state, styledInput(state, rest));
+  if (deletedWidth > 0) w(state, " ".repeat(deletedWidth));
+  if (restW + deletedWidth > 0) rewindAfterAdvance(state, restW + deletedWidth);
 }
