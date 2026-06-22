@@ -64,7 +64,7 @@
     "shiki": "4.0.2",
     "sql-highlight": "6.1.0",
     "typescript": "6.0.3",
-    "vitest": "4.1.5"
+    "vitest": "4.1.9"
   },
   "packageManager": "pnpm@11.0.8"
 }
