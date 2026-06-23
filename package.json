@@ -53,7 +53,7 @@
     "@inquirer/prompts": "8.5.2",
     "@types/node": "25.9.4",
     "@xterm/headless": "6.0.0",
-    "graphql": "16.14.2",
+    "graphql": "17.0.1",
     "graphql-language-service-parser": "1.10.4",
     "knip": "6.17.1",
     "lefthook": "2.1.9",
