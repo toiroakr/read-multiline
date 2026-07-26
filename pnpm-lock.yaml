@@ -45,8 +45,8 @@ importers:
         specifier: 1.75.0
         version: 1.75.0
       publint:
-        specifier: 0.3.21
-        version: 0.3.21
+        specifier: 0.3.22
+        version: 0.3.22
       shiki:
         specifier: 4.3.1
         version: 4.3.1
@@ -903,8 +903,8 @@ packages:
     resolution: {integrity: sha512-ODOov0sGMJMf3jPonOkgGqPknTsu+DdQ7kD++gz8aI+aFMOMHFbWAA2taqXXVTdP+OTOQR/znGvSpmkeI0WTYQ==}
     engines: {node: '>=14.18.0'}
 
-  '@publint/pack@0.1.5':
-    resolution: {integrity: sha512-edgyN2pP07uXiP4tJs0s8KVmU8M8i60YPbbI0/WDeok1mIJHRXz+CgD8I0nelwDkoCh3EWL/G5kGfbuHjsdbvw==}
+  '@publint/pack@0.1.6':
+    resolution: {integrity: sha512-3uVNyGcVplhPZSLVyeIpL7+cIRn1YCSNHLG/rUIlBQMVH8YuN9++YF+5+UDIIO9RW98dujiUoTltO7RDB5bFJA==}
     engines: {node: '>=18'}
 
   '@repeaterjs/repeater@3.0.4':
@@ -1936,8 +1936,8 @@ packages:
   property-information@7.2.0:
     resolution: {integrity: sha512-IAtzIB6sUiWaJYrX9smp3V46pBGbBeLFRGdh25kg1334VcBlD8HzhPeNIWQH9zhGmo2itIe25EHt9dQP7G5hmg==}
 
-  publint@0.3.21:
-    resolution: {integrity: sha512-OqejcnMV6E9zel2oCrUOJEiiFkGiAAni0A6ibfQNh1k9Gu5z4F+Yso8lllam7AzmV6Do0vp7u3UpZNRBwuXaHQ==}
+  publint@0.3.22:
+    resolution: {integrity: sha512-6Z/scsr5CA7APdwyF35EY88CqgDj1textWuY788DVTJYPCWVv/Wn9G6KmLnrVRnStgYcahqN4wCDLZGSbQJ69w==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -3117,7 +3117,7 @@ snapshots:
       tslib: 2.8.1
       webcrypto-core: 1.9.2
 
-  '@publint/pack@0.1.5':
+  '@publint/pack@0.1.6':
     dependencies:
       tinyexec: 1.2.4
 
@@ -4077,9 +4077,9 @@ snapshots:
 
   property-information@7.2.0: {}
 
-  publint@0.3.21:
+  publint@0.3.22:
     dependencies:
-      '@publint/pack': 0.1.5
+      '@publint/pack': 0.1.6
       package-manager-detector: 1.7.0
       picocolors: 1.1.1
       sade: 1.8.1
