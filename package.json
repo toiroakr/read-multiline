@@ -61,7 +61,7 @@
     "oxfmt": "0.61.0",
     "oxlint": "1.76.0",
     "publint": "0.3.22",
-    "shiki": "4.3.1",
+    "shiki": "4.4.1",
     "sql-highlight": "6.1.0",
     "typescript": "7.0.2",
     "vitest": "4.1.10"
