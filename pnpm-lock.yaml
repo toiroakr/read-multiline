@@ -9,55 +9,55 @@ importers:
   .:
     devDependencies:
       '@changesets/cli':
-        specifier: 2.31.1
+        specifier: ^2.31.1
         version: 2.31.1(@types/node@25.9.5)
       '@clack/prompts':
-        specifier: 1.7.0
+        specifier: ^1.7.0
         version: 1.7.0
       '@inquirer/prompts':
-        specifier: 8.5.2
+        specifier: ^8.5.2
         version: 8.5.2(@types/node@25.9.5)
       '@types/node':
-        specifier: 25.9.5
+        specifier: ^25.9.5
         version: 25.9.5
       '@xterm/headless':
-        specifier: 6.0.0
+        specifier: ^6.0.0
         version: 6.0.0
       graphql:
-        specifier: 17.0.2
+        specifier: ^17.0.2
         version: 17.0.2
       graphql-language-service-parser:
-        specifier: 1.10.4
+        specifier: ^1.10.4
         version: 1.10.4(@types/node@25.9.5)(graphql@17.0.2)
       knip:
-        specifier: 6.32.0
+        specifier: ^6.32.0
         version: 6.32.0
       lefthook:
-        specifier: 2.1.10
+        specifier: ^2.1.10
         version: 2.1.10
       organize-imports-cli:
-        specifier: 1.0.2
+        specifier: ^1.0.2
         version: 1.0.2
       oxfmt:
-        specifier: 0.62.0
+        specifier: ^0.62.0
         version: 0.62.0
       oxlint:
-        specifier: 1.77.0
+        specifier: ^1.77.0
         version: 1.77.0
       publint:
-        specifier: 0.3.23
+        specifier: ^0.3.23
         version: 0.3.23
       shiki:
-        specifier: 4.4.2
+        specifier: ^4.4.2
         version: 4.4.2
       sql-highlight:
-        specifier: 6.1.0
+        specifier: ^6.1.0
         version: 6.1.0
       typescript:
-        specifier: 7.0.2
+        specifier: ^7.0.2
         version: 7.0.2
       vitest:
-        specifier: 4.1.10
+        specifier: ^4.1.10
         version: 4.1.10(@types/node@25.9.5)(vite@8.2.1(@types/node@25.9.5)(jiti@2.7.0)(yaml@2.9.0))
 
 packages:
