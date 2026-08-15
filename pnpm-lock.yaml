@@ -30,7 +30,7 @@ importers:
         specifier: ^1.10.4
         version: 1.10.4(@types/node@25.9.5)(graphql@17.0.2)
       knip:
-        specifier: ^6.32.1
+        specifier: ^6.32.2
         version: 6.32.2
       lefthook:
         specifier: ^2.1.10
