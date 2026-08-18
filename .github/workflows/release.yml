@@ -44,7 +44,7 @@ jobs:
       - name: Publint
         run: pnpm exec publint
       - name: Create Release PR or Publish
-        uses: changesets/action@v1
+        uses: changesets/action@22ccf9aa43179fe9e27dc62e575971d28cce197c # v2.0.0
         with:
           version: pnpm changeset version
           publish: pnpm changeset publish
