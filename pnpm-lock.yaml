@@ -110,7 +110,7 @@ importers:
   .:
     devDependencies:
       '@changesets/cli':
-        specifier: ^3.0.1
+        specifier: ^3.0.2
         version: 3.0.2
       '@clack/prompts':
         specifier: ^1.7.0
