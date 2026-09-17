@@ -170,7 +170,7 @@ importers:
         specifier: ^3.0.2
         version: 3.0.2
       '@clack/prompts':
-        specifier: ^1.8.0
+        specifier: ^1.8.1
         version: 1.8.1
       '@inquirer/prompts':
         specifier: ^8.7.2
