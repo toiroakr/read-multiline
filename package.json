@@ -51,7 +51,7 @@
     "@changesets/cli": "^3.0.3",
     "@clack/prompts": "^1.8.1",
     "@inquirer/prompts": "^8.7.2",
-    "@types/node": "^25.9.6",
+    "@types/node": "^25.9.7",
     "@xterm/headless": "^6.0.0",
     "graphql": "^17.0.2",
     "graphql-language-service-parser": "^1.10.4",
