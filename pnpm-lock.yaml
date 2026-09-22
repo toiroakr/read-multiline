@@ -176,7 +176,7 @@ importers:
         specifier: ^8.7.2
         version: 8.7.2(@types/node@25.9.8)
       '@types/node':
-        specifier: ^25.9.7
+        specifier: ^25.9.8
         version: 25.9.8
       '@xterm/headless':
         specifier: ^6.0.0
