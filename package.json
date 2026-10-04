@@ -60,7 +60,7 @@
     "organize-imports-cli": "^1.0.2",
     "oxfmt": "^0.71.0",
     "oxlint": "^1.86.0",
-    "publint": "^0.3.24",
+    "publint": "^0.3.25",
     "shiki": "^4.5.0",
     "sql-highlight": "^6.1.0",
     "typescript": "^7.0.2",
