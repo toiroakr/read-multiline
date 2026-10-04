@@ -191,7 +191,7 @@ importers:
         specifier: ^6.39.0
         version: 6.39.0
       lefthook:
-        specifier: ^2.1.15
+        specifier: ^2.1.16
         version: 2.1.16
       organize-imports-cli:
         specifier: ^1.0.2
