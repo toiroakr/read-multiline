@@ -56,7 +56,7 @@
     "graphql": "^17.0.2",
     "graphql-language-service-parser": "^1.10.4",
     "knip": "^6.40.0",
-    "lefthook": "^2.1.17",
+    "lefthook": "^2.2.0",
     "organize-imports-cli": "^1.0.2",
     "oxfmt": "^0.72.0",
     "oxlint": "^1.87.0",
