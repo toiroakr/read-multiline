@@ -362,7 +362,7 @@ export function redrawFrom(
   beginBatch(state);
   const currentVisualRow =
     options?.previousCursorVisualRow ?? cursorVisualRow(state, state.row, state.col);
-  const fromVisualRow = firstVisualRow(state, fromRow);
+  const fromVisualRow = cursorVisualRow(state, fromRow, 0);
   const dr = fromVisualRow - currentVisualRow;
   if (dr < 0) w(state, `\x1b[${-dr}A`);
   else if (dr > 0) w(state, `\x1b[${dr}B`);

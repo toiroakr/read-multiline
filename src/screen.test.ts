@@ -276,6 +276,32 @@ describe("Screen rendering (virtual terminal)", () => {
     }
   });
 
+  it("preserves an inline header that wraps before the input starts", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12);
+    const promise = readMultiline("ABCDEFGHIJKLM", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      inlinePrompt: true,
+      helpFooter: false,
+      initialValue: "a\nb",
+      highlightLines: (lines) => [...lines],
+    });
+    try {
+      input.send("!");
+      await flush(vt.term);
+      expect(screenLine(vt.term, 0)).toBe("ABCDEFGHIJKL");
+      expect(screenLine(vt.term, 1)).toBe("Ma");
+      expect(screenLine(vt.term, 2)).toBe("b!");
+      expect(cursorPos(vt.term)).toEqual({ x: 2, y: 2 });
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
   it("recolors earlier lines when a later line changes", async () => {
     const promise = readMultiline("", {
       input,
