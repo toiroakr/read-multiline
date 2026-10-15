@@ -70,6 +70,40 @@ const askClack = createPrompt(presets.clack);
 const [input] = await askClack("Enter some text:");
 ```
 
+### Syntax highlighting with Twinkleplop
+
+The optional [Twinkleplop example](examples/twinkleplop-editor.ts) supports SQL and
+GraphQL using the existing `highlight` callback. The core package still has zero
+runtime dependencies. From a checkout of this repository:
+
+```bash
+pnpm install
+npx tsx examples/twinkleplop-editor.ts sql
+npx tsx examples/twinkleplop-editor.ts graphql
+```
+
+To use the adapter in your own application, install `@twinkleplop/sql` or
+`@twinkleplop/graphql`, copy [the ANSI adapter](examples/twinkleplop-highlight.ts),
+and pass a tokenizer to it:
+
+```typescript
+import { tokenize } from "@twinkleplop/sql";
+import { readMultiline } from "@toiroakr/read-multiline";
+import { createTwinkleplopHighlight } from "./twinkleplop-highlight.js";
+
+const highlight = createTwinkleplopHighlight(tokenize());
+const [value, error] = await readMultiline("SQL:", { highlight });
+```
+
+The adapter preserves the original text, including whitespace and Unicode, and
+accepts incomplete input while typing. Each line is tokenized independently:
+SQL block comments, GraphQL block strings, and context-dependent classifications
+spanning multiple lines are not tracked. This example provides highlighting,
+without the auto-editing or validation of the other editor examples.
+
+See [benchmark results and methodology](examples/highlighting-benchmark.md) for
+startup time, ANSI rendering time, memory usage, and the command to reproduce them.
+
 ## API
 
 ### `readMultiline(prompt, options?): Promise<ReadMultilineResult>`

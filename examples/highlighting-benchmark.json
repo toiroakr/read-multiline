@@ -1,0 +1,397 @@
+{
+  "environment": {
+    "date": "2026-10-15T13:08:10.656Z",
+    "node": "v24.13.0",
+    "os": "darwin 25.6.0 arm64",
+    "cpu": "Apple M3",
+    "versions": {
+      "@twinkleplop/sql": "0.1.7",
+      "@twinkleplop/graphql": "0.2.1",
+      "shiki": "4.5.0",
+      "sql-highlight": "6.1.0"
+    }
+  },
+  "method": "5 fresh processes per provider/language, rotating order; 100 warmup iterations and >=100ms per scenario; no terminal I/O; startup excludes Node startup and uses warm filesystem cache",
+  "scenarios": {
+    "sql": {
+      "line": {
+        "lines": 1,
+        "characters": 51
+      },
+      "redraw100": {
+        "lines": 100,
+        "characters": 5290
+      },
+      "typing": {
+        "lines": 51,
+        "characters": 1326
+      }
+    },
+    "graphql": {
+      "line": {
+        "lines": 1,
+        "characters": 47
+      },
+      "redraw100": {
+        "lines": 100,
+        "characters": 5270
+      },
+      "typing": {
+        "lines": 47,
+        "characters": 1128
+      }
+    }
+  },
+  "results": [
+    {
+      "provider": "twinkleplop",
+      "language": "sql",
+      "median": {
+        "readyMs": 41.960916999999995,
+        "rssMiB": 78.171875,
+        "microseconds": {
+          "line": 3.5545620113717136,
+          "redraw100": 531.9752210526318,
+          "typing": 107.80878064516133
+        }
+      },
+      "samples": [
+        {
+          "setupMs": 55.227959,
+          "firstRenderMs": 4.543125000000003,
+          "readyMs": 59.771084,
+          "rssMiB": 77.90625,
+          "timings": {
+            "line": 3.7433429475251216,
+            "redraw100": 664.4102941176474,
+            "typing": 192.40624999999997
+          }
+        },
+        {
+          "setupMs": 41.614458,
+          "firstRenderMs": 1.5678340000000048,
+          "readyMs": 43.182292000000004,
+          "rssMiB": 78.46875,
+          "timings": {
+            "line": 3.30703899537343,
+            "redraw100": 244.31138292682928,
+            "typing": 92.93522314814815
+          }
+        },
+        {
+          "setupMs": 15.184666,
+          "firstRenderMs": 2.237334000000004,
+          "readyMs": 17.422000000000004,
+          "rssMiB": 77.984375,
+          "timings": {
+            "line": 2.9669101750222486,
+            "redraw100": 279.7756944444444,
+            "typing": 95.53211509433964
+          }
+        },
+        {
+          "setupMs": 20.009583000000006,
+          "firstRenderMs": 1.294083999999998,
+          "readyMs": 21.303667000000004,
+          "rssMiB": 78.171875,
+          "timings": {
+            "line": 3.5545620113717136,
+            "redraw100": 1347.75,
+            "typing": 107.80878064516133
+          }
+        },
+        {
+          "setupMs": 38.99312500000002,
+          "firstRenderMs": 2.9677919999999745,
+          "readyMs": 41.960916999999995,
+          "rssMiB": 80.078125,
+          "timings": {
+            "line": 8.25522464962902,
+            "redraw100": 531.9752210526318,
+            "typing": 146.2477652173914
+          }
+        }
+      ]
+    },
+    {
+      "provider": "shiki",
+      "language": "sql",
+      "median": {
+        "readyMs": 459.97375000000005,
+        "rssMiB": 102.90625,
+        "microseconds": {
+          "line": 574.0738388888888,
+          "redraw100": 22739.999999999964,
+          "typing": 8030.614549999972
+        }
+      },
+      "samples": [
+        {
+          "setupMs": 303.406791,
+          "firstRenderMs": 103.25633400000004,
+          "readyMs": 406.66312500000004,
+          "rssMiB": 102.90625,
+          "timings": {
+            "line": 547.8324578947369,
+            "redraw100": 36177.67090000007,
+            "typing": 8030.614549999972
+          }
+        },
+        {
+          "setupMs": 147.922333,
+          "firstRenderMs": 312.051417,
+          "readyMs": 459.97375000000005,
+          "rssMiB": 97.453125,
+          "timings": {
+            "line": 238.24107142857136,
+            "redraw100": 20768.44580000002,
+            "typing": 6785.995850000018
+          }
+        },
+        {
+          "setupMs": 540.3494169999999,
+          "firstRenderMs": 44.411291000000006,
+          "readyMs": 584.760708,
+          "rssMiB": 108.78125,
+          "timings": {
+            "line": 3958.743066666667,
+            "redraw100": 21355.89170000003,
+            "typing": 8137.71670000001
+          }
+        },
+        {
+          "setupMs": 201.40166600000003,
+          "firstRenderMs": 41.883084,
+          "readyMs": 243.28475000000003,
+          "rssMiB": 123.140625,
+          "timings": {
+            "line": 574.0738388888888,
+            "redraw100": 28862.824999999975,
+            "typing": 6950.862499999994
+          }
+        },
+        {
+          "setupMs": 1293.305708,
+          "firstRenderMs": 473.80887499999994,
+          "readyMs": 1767.114583,
+          "rssMiB": 95.90625,
+          "timings": {
+            "line": 1457.0047714285724,
+            "redraw100": 22739.999999999964,
+            "typing": 9127.679199999966
+          }
+        }
+      ]
+    },
+    {
+      "provider": "sql-highlight",
+      "language": "sql",
+      "median": {
+        "readyMs": 9.430709000000007,
+        "rssMiB": 76.109375,
+        "microseconds": {
+          "line": 15.394628153846156,
+          "redraw100": 1563.8636857142842,
+          "typing": 460.1225409090903
+        }
+      },
+      "samples": [
+        {
+          "setupMs": 10.632041999999998,
+          "firstRenderMs": 2.065833000000012,
+          "readyMs": 12.69787500000001,
+          "rssMiB": 76.21875,
+          "timings": {
+            "line": 12.837254358974361,
+            "redraw100": 1306.7356444444442,
+            "typing": 674.5683333333337
+          }
+        },
+        {
+          "setupMs": 6.326625000000007,
+          "firstRenderMs": 1.6748329999999925,
+          "readyMs": 8.001458,
+          "rssMiB": 76.109375,
+          "timings": {
+            "line": 15.43277473035439,
+            "redraw100": 1704.6805666666662,
+            "typing": 371.5790148148149
+          }
+        },
+        {
+          "setupMs": 276.576,
+          "firstRenderMs": 4.579665999999975,
+          "readyMs": 281.155666,
+          "rssMiB": 63.875,
+          "timings": {
+            "line": 52.77454427083332,
+            "redraw100": 1563.8636857142842,
+            "typing": 460.1225409090903
+          }
+        },
+        {
+          "setupMs": 5.525165999999999,
+          "firstRenderMs": 1.5021249999999995,
+          "readyMs": 7.027290999999998,
+          "rssMiB": 76.765625,
+          "timings": {
+            "line": 15.394628153846156,
+            "redraw100": 1344.9760374999996,
+            "typing": 436.8338782608695
+          }
+        },
+        {
+          "setupMs": 6.985334000000009,
+          "firstRenderMs": 2.4453749999999985,
+          "readyMs": 9.430709000000007,
+          "rssMiB": 75.8125,
+          "timings": {
+            "line": 15.0641792481203,
+            "redraw100": 2066.284999999999,
+            "typing": 527.2754368421051
+          }
+        }
+      ]
+    },
+    {
+      "provider": "twinkleplop",
+      "language": "graphql",
+      "median": {
+        "readyMs": 19.601416999999998,
+        "rssMiB": 78.265625,
+        "microseconds": {
+          "line": 2.230108695652174,
+          "redraw100": 358.0630964285713,
+          "typing": 82.05782131147542
+        }
+      },
+      "samples": [
+        {
+          "setupMs": 15.796374999999998,
+          "firstRenderMs": 0.5202079999999967,
+          "readyMs": 16.316582999999994,
+          "rssMiB": 78.1875,
+          "timings": {
+            "line": 2.128818219547624,
+            "redraw100": 282.20347222222216,
+            "typing": 66.76033333333335
+          }
+        },
+        {
+          "setupMs": 19.232167000000004,
+          "firstRenderMs": 0.36924999999999386,
+          "readyMs": 19.601416999999998,
+          "rssMiB": 78.265625,
+          "timings": {
+            "line": 2.2173207538802657,
+            "redraw100": 187.37022727272736,
+            "typing": 53.887880645161275
+          }
+        },
+        {
+          "setupMs": 16.132000000000005,
+          "firstRenderMs": 0.7849999999999966,
+          "readyMs": 16.917,
+          "rssMiB": 78.265625,
+          "timings": {
+            "line": 2.230108695652174,
+            "redraw100": 358.0630964285713,
+            "typing": 82.05782131147542
+          }
+        },
+        {
+          "setupMs": 19.653999999999996,
+          "firstRenderMs": 0.6792920000000038,
+          "readyMs": 20.333292,
+          "rssMiB": 78.28125,
+          "timings": {
+            "line": 7.032235277582571,
+            "redraw100": 443.6344999999999,
+            "typing": 94.42114811320754
+          }
+        },
+        {
+          "setupMs": 73.284042,
+          "firstRenderMs": 0.7277919999999654,
+          "readyMs": 74.01183399999996,
+          "rssMiB": 75.671875,
+          "timings": {
+            "line": 4.434345434397164,
+            "redraw100": 1119.3848937500002,
+            "typing": 103.13801546391748
+          }
+        }
+      ]
+    },
+    {
+      "provider": "shiki",
+      "language": "graphql",
+      "median": {
+        "readyMs": 224.236292,
+        "rssMiB": 107.921875,
+        "microseconds": {
+          "line": 59.102818823529404,
+          "redraw100": 4586.5722000000005,
+          "typing": 1112.7393555555575
+        }
+      },
+      "samples": [
+        {
+          "setupMs": 197.017917,
+          "firstRenderMs": 27.21837499999998,
+          "readyMs": 224.236292,
+          "rssMiB": 107.46875,
+          "timings": {
+            "line": 68.55856164383563,
+            "redraw100": 5102.833350000003,
+            "typing": 1070.9303000000007
+          }
+        },
+        {
+          "setupMs": 190.60299999999998,
+          "firstRenderMs": 15.139333000000022,
+          "readyMs": 205.742333,
+          "rssMiB": 107.921875,
+          "timings": {
+            "line": 59.102818823529404,
+            "redraw100": 4560.915266666662,
+            "typing": 1112.7393555555575
+          }
+        },
+        {
+          "setupMs": 299.93050000000005,
+          "firstRenderMs": 24.545499999999947,
+          "readyMs": 324.476,
+          "rssMiB": 106.9375,
+          "timings": {
+            "line": 65.27283506493504,
+            "redraw100": 4363.351366666666,
+            "typing": 1295.7592555555568
+          }
+        },
+        {
+          "setupMs": 281.36004099999997,
+          "firstRenderMs": 29.679167000000007,
+          "readyMs": 311.039208,
+          "rssMiB": 108.71875,
+          "timings": {
+            "line": 51.61565721649483,
+            "redraw100": 4586.5722000000005,
+            "typing": 1205.9412000000013
+          }
+        },
+        {
+          "setupMs": 124.18237500000001,
+          "firstRenderMs": 23.197666999999996,
+          "readyMs": 147.380042,
+          "rssMiB": 108.890625,
+          "timings": {
+            "line": 46.446527777777774,
+            "redraw100": 5388.772950000004,
+            "typing": 1096.1574999999993
+          }
+        }
+      ]
+    }
+  ]
+}
