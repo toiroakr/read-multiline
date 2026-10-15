@@ -77,12 +77,8 @@ the five processes. They are not per-keystroke percentiles.
 SELECT id, COUNT(*) FROM users WHERE active = true;
 ```
 
-```graphql
-query User($id: ID!) {
-  user(id: $id) {
-    name
-  }
-}
+```text
+query User($id: ID!) { user(id: $id) { name } }
 ```
 
 Before timing, every output is checked for ANSI styling and exact preservation of
