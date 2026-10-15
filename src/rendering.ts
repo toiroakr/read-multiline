@@ -383,16 +383,15 @@ export function redrawFrom(
   beginBatch(state);
   const currentVisualRow =
     options?.previousCursorVisualRow ?? cursorVisualRow(state, state.row, state.col);
-  const fromVisualRow = cursorVisualRow(state, fromRow, 0);
+  const redrawHeader = !!state.highlightLines && state.inlinePrompt && fromRow === 0;
+  const fromVisualRow = redrawHeader ? 0 : cursorVisualRow(state, fromRow, 0);
   const dr = fromVisualRow - currentVisualRow;
   if (dr < 0) w(state, `\x1b[${-dr}A`);
   else if (dr > 0) w(state, `\x1b[${dr}B`);
-  w(state, `\x1b[${tCol(state, fromRow, 0)}G`);
+  w(state, `\x1b[${redrawHeader ? 1 : tCol(state, fromRow, 0)}G`);
 
   w(state, "\x1b[J");
-  // Note: In inline prompt mode, tCol(state, 0, 0) already positions the cursor
-  // *after* the existing prompt header, so the header on the terminal is preserved
-  // and we must not re-emit it here (doing so would duplicate the header).
+  if (redrawHeader) w(state, state.promptHeader);
   w(state, renderLine(state, fromRow));
   for (let i = fromRow + 1; i < state.lines.length; i++) {
     w(state, "\n" + state.styledLinePrefix + renderLine(state, i));
