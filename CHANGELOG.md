@@ -1,5 +1,11 @@
 # @toiroakr/read-multiline
 
+## 0.4.3
+
+### Patch Changes
+
+- 1b43b70: Keep tall initial input off the main screen until the prompt finishes, balance Kitty keyboard modes across viewport transitions, and preserve OSC hyperlinks and grapheme cell widths while wrapping and navigating document-highlighted input. Defer terminal input modes until initial highlighting succeeds.
+
 ## 0.4.2
 
 ### Patch Changes
