@@ -359,7 +359,7 @@ export interface EditorState {
     main: Pick<
       EditorState,
       "lines" | "row" | "col" | "promptHeader" | "promptHeaderHeight" | "linePrefixWidth"
-    >;
+    > | null;
   } | null;
   transform:
     | ((state: TransformState, event: TransformEvent) => TransformState | undefined)

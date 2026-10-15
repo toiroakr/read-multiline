@@ -1,3 +1,4 @@
+import { stripVTControlCharacters } from "node:util";
 import { charWidth } from "./chars.js";
 import { applyStyle } from "./style.js";
 import type { EditorState } from "./types.js";
@@ -65,23 +66,66 @@ function updateSgr(style: Map<number, string>, sequence: string): void {
   }
 }
 
+const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+function cellWidth(text: string): number {
+  const code = text.codePointAt(0)!;
+  if (text.length === 1 && code < 0x7f) return charWidth(code);
+  if (/^(?:\p{Mark}|\u200c|\u200d|[\ufe00-\ufe0f])+$/u.test(text)) return 0;
+  if (
+    !text.includes("\ufe0e") &&
+    /\p{Emoji_Presentation}|\p{Regional_Indicator}|\ufe0f/u.test(text)
+  )
+    return 2;
+  return charWidth(code);
+}
+
+export function viewportColumn(text: string, index: number): number {
+  let width = 0;
+  for (const { segment } of graphemes.segment(stripVTControlCharacters(text.slice(0, index)))) {
+    width += cellWidth(segment);
+  }
+  return width;
+}
+
+export function viewportIndex(text: string, column: number): number {
+  let width = 0;
+  let index = 0;
+  for (const { segment } of graphemes.segment(text)) {
+    const next = width + cellWidth(segment);
+    if (next > column) break;
+    width = next;
+    index += segment.length;
+  }
+  return index;
+}
+
 function wrap(text: string, columns: number): { lines: string[]; column: number } {
   const lines: string[] = [];
   let line = "";
   let column = 0;
   const style = new Map<number, string>();
-  for (const part of text.match(/\x1b\[[0-?]*[ -/]*[@-~]|[^]/gu) ?? []) {
+  let hyperlink = "";
+  const controls =
+    text.match(
+      /\x1b\](?:[^\x1b\x07]|\x1b(?!\\))*(?:\x07|\x1b\\)|\x1b\[[0-?]*[ -/]*[@-~]|[^\x1b]+|\x1b/gu,
+    ) ?? [];
+  const parts = controls.flatMap((part) =>
+    part.startsWith("\x1b") ? [part] : [...graphemes.segment(part)].map(({ segment }) => segment),
+  );
+  const close = () => (hyperlink ? "\x1b]8;;\x1b\\" : "") + "\x1b[0m";
+  for (const part of parts) {
     if (part.startsWith("\x1b")) {
       line += part;
-      if (part.endsWith("m")) {
-        updateSgr(style, part);
-      }
+      if (part.startsWith("\x1b[") && part.endsWith("m")) updateSgr(style, part);
+      const link = part.match(/^\x1b\]8;[^;]*;(.*?)(?:\x07|\x1b\\)$/su);
+      if (link) hyperlink = link[1] ? part : "";
       continue;
     }
-    const width = charWidth(part.codePointAt(0)!);
+    const width = cellWidth(part);
     if (part === "\n" || (width > 0 && column + width > columns)) {
-      lines.push(line + "\x1b[0m");
-      line = style.size ? `\x1b[${[...style.values()].join(";")}m` : "";
+      lines.push(line + close());
+      line = (style.size ? `\x1b[${[...style.values()].join(";")}m` : "") + hyperlink;
       column = 0;
     }
     if (part !== "\n") {
@@ -89,7 +133,7 @@ function wrap(text: string, columns: number): { lines: string[]; column: number 
       column += width;
     }
   }
-  lines.push(line + "\x1b[0m");
+  lines.push(line + close());
   return { lines, column: Math.min(column, columns - 1) };
 }
 

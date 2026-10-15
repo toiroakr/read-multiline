@@ -377,52 +377,52 @@ function readFromTTY(
 
     // --- Initialization ---
 
-    // Draw prompt header line (always in inline mode, conditionally otherwise)
-    const showHeader = promptHeaderHeight > 0 || inlinePrompt;
-    if (showHeader) {
-      w(state, promptHeader);
-      // In inline mode, input follows on the same line (no newline after prompt)
-      if (!inlinePrompt) {
-        w(state, "\n");
-      }
-    }
-
-    // Draw first input line with linePrefix
-    // In inline mode, row 0 has no prefix (the prompt header is inline with input)
-    if (!inlinePrompt) {
-      w(state, styledLinePrefix);
-    }
-
-    if (initialValue) {
-      const initLines = initialValue.split("\n");
-      state.lines.length = 0;
-      state.lines.push(...initLines);
-      w(state, renderLine(state, 0));
-      for (let i = 1; i < initLines.length; i++) {
-        w(state, "\n" + styledLinePrefix + renderLine(state, i));
-      }
-      state.row = initLines.length - 1;
-      state.col = initLines[state.row].length;
-    }
-
-    if (footer) {
-      const endRow = state.lines.length - 1;
-      const dr = endRow - state.row;
-      if (dr > 0) w(state, `\x1b[${dr}B`);
-      const footerLines = styledFooter.split("\n");
-      for (const line of footerLines) {
-        w(state, "\r\n" + line + "\x1b[K");
-      }
-      const upCount = endRow + footerLines.length - state.row;
-      if (upCount > 0) w(state, `\x1b[${upCount}A`);
-      w(state, `\x1b[${tCol(state, state.row, state.col)}G`);
-    }
-
-    renderViewport(state, { allowEnter: true, reuseHighlight: true });
     input.setRawMode?.(true);
     input.resume();
-    w(state, "\x1b[>1u"); // Enable kitty keyboard protocol
-    w(state, "\x1b[?2004h"); // Enable bracketed paste mode
+    w(state, "\x1b[>1u");
+    if (initialValue) {
+      state.lines = initialValue.split("\n");
+      state.row = state.lines.length - 1;
+      state.col = state.lines[state.row].length;
+    }
+    if (!renderViewport(state, { allowEnter: true, main: null })) {
+      // Draw prompt header line (always in inline mode, conditionally otherwise)
+      const showHeader = promptHeaderHeight > 0 || inlinePrompt;
+      if (showHeader) {
+        w(state, promptHeader);
+        // In inline mode, input follows on the same line (no newline after prompt)
+        if (!inlinePrompt) {
+          w(state, "\n");
+        }
+      }
+
+      // Draw first input line with linePrefix
+      // In inline mode, row 0 has no prefix (the prompt header is inline with input)
+      if (!inlinePrompt) {
+        w(state, styledLinePrefix);
+      }
+
+      if (initialValue) {
+        w(state, renderLine(state, 0));
+        for (let i = 1; i < state.lines.length; i++) {
+          w(state, "\n" + styledLinePrefix + renderLine(state, i));
+        }
+      }
+
+      if (footer) {
+        const endRow = state.lines.length - 1;
+        const dr = endRow - state.row;
+        if (dr > 0) w(state, `\x1b[${dr}B`);
+        const footerLines = styledFooter.split("\n");
+        for (const line of footerLines) {
+          w(state, "\r\n" + line + "\x1b[K");
+        }
+        const upCount = endRow + footerLines.length - state.row;
+        if (upCount > 0) w(state, `\x1b[${upCount}A`);
+        w(state, `\x1b[${tCol(state, state.row, state.col)}G`);
+      }
+    }
+    w(state, "\x1b[?2004h");
 
     // helpFooter: auto-generated key bindings help, shown after kitty detection
     // Must run after raw mode is enabled so the terminal can respond to the query

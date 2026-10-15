@@ -13,6 +13,7 @@ import {
   w,
 } from "./rendering.js";
 import type { EditorState } from "./types.js";
+import { viewportColumn, viewportIndex } from "./viewport.js";
 
 // --- Basic cursor movement ---
 
@@ -73,8 +74,12 @@ export function moveRight(state: EditorState): void {
 /** Move cursor one line up, preserving visual column position */
 export function moveUp(state: EditorState): void {
   if (state.row > 0) {
-    const vc = visualCol(state.lines[state.row], state.col);
-    const targetCol = colFromVisual(state.lines[state.row - 1], vc);
+    const vc = state.viewport
+      ? viewportColumn(state.lines[state.row], state.col)
+      : visualCol(state.lines[state.row], state.col);
+    const targetCol = state.viewport
+      ? viewportIndex(state.lines[state.row - 1], vc)
+      : colFromVisual(state.lines[state.row - 1], vc);
     moveTo(state, state.row - 1, targetCol);
   }
 }
@@ -82,8 +87,12 @@ export function moveUp(state: EditorState): void {
 /** Move cursor one line down, preserving visual column position */
 export function moveDown(state: EditorState): void {
   if (state.row < state.lines.length - 1) {
-    const vc = visualCol(state.lines[state.row], state.col);
-    const targetCol = colFromVisual(state.lines[state.row + 1], vc);
+    const vc = state.viewport
+      ? viewportColumn(state.lines[state.row], state.col)
+      : visualCol(state.lines[state.row], state.col);
+    const targetCol = state.viewport
+      ? viewportIndex(state.lines[state.row + 1], vc)
+      : colFromVisual(state.lines[state.row + 1], vc);
     moveTo(state, state.row + 1, targetCol);
   }
 }

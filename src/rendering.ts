@@ -24,7 +24,7 @@ export function renderLine(state: EditorState, rowIndex: number): string {
   return state.highlight ? state.highlight(line, rowIndex) : styledInput(state, line);
 }
 
-type MainScreen = NonNullable<EditorState["viewport"]>["main"];
+type MainScreen = NonNullable<NonNullable<EditorState["viewport"]>["main"]>;
 
 function captureMainScreen(state: EditorState): MainScreen {
   return {
@@ -46,7 +46,7 @@ export function renderViewport(
   }: {
     allowEnter?: boolean;
     reuseHighlight?: boolean;
-    main?: MainScreen;
+    main?: MainScreen | null;
   } = {},
 ): boolean {
   const cached = state.highlightedLines;
@@ -56,8 +56,12 @@ export function renderViewport(
     state.highlightedLines = cached;
     return false;
   }
-  const savedMain = state.viewport?.main ?? main ?? captureMainScreen(state);
-  if (!state.viewport) w(state, "\x1b[?1049h");
+  const savedMain = state.viewport
+    ? state.viewport.main
+    : main !== undefined
+      ? main
+      : captureMainScreen(state);
+  if (!state.viewport) w(state, "\x1b[?1049h\x1b[>1u");
   state.viewport = { top: frame.top, main: savedMain };
   w(state, "\x1b[?25l" + frame.output + "\x1b[?25h");
   return true;
@@ -66,9 +70,9 @@ export function renderViewport(
 export function leaveViewport(state: EditorState): number | null {
   if (!state.viewport) return null;
   const main = state.viewport.main;
-  w(state, "\x1b[?1049l");
+  w(state, "\x1b[<u\x1b[?1049l");
   state.viewport = null;
-  return cursorVisualRow({ ...state, ...main }, main.row, main.col);
+  return main ? cursorVisualRow({ ...state, ...main }, main.row, main.col) : 0;
 }
 
 /** Write text to the output stream (or buffer if batching) */
