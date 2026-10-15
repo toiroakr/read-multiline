@@ -225,6 +225,7 @@ function readFromTTY(
       validationActive: false,
       validateTimer: null,
       isPasting: false,
+      keyboardMode: false,
       escBuffer: "",
       escTimer: null,
       maxLines,
@@ -276,6 +277,7 @@ function readFromTTY(
       clearBelowEditor(state);
       w(state, "\x1b[?2004l"); // Disable bracketed paste mode
       w(state, "\x1b[<u"); // Disable kitty protocol
+      state.keyboardMode = false;
       input.setRawMode?.(false);
       input.removeListener("data", dataHandler);
       input.pause();
@@ -377,9 +379,6 @@ function readFromTTY(
 
     // --- Initialization ---
 
-    input.setRawMode?.(true);
-    input.resume();
-    w(state, "\x1b[>1u");
     if (initialValue) {
       state.lines = initialValue.split("\n");
       state.row = state.lines.length - 1;
@@ -422,6 +421,10 @@ function readFromTTY(
         w(state, `\x1b[${tCol(state, state.row, state.col)}G`);
       }
     }
+    input.setRawMode?.(true);
+    input.resume();
+    w(state, "\x1b[>1u");
+    state.keyboardMode = true;
     w(state, "\x1b[?2004h");
 
     // helpFooter: auto-generated key bindings help, shown after kitty detection

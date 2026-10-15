@@ -61,7 +61,11 @@ export function renderViewport(
     : main !== undefined
       ? main
       : captureMainScreen(state);
-  if (!state.viewport) w(state, "\x1b[?1049h\x1b[>1u");
+  if (!state.viewport) {
+    if (state.keyboardMode) w(state, "\x1b[<u");
+    w(state, "\x1b[?1049h");
+    if (state.keyboardMode) w(state, "\x1b[>1u");
+  }
   state.viewport = { top: frame.top, main: savedMain };
   w(state, "\x1b[?25l" + frame.output + "\x1b[?25h");
   return true;
@@ -70,7 +74,9 @@ export function renderViewport(
 export function leaveViewport(state: EditorState): number | null {
   if (!state.viewport) return null;
   const main = state.viewport.main;
-  w(state, "\x1b[<u\x1b[?1049l");
+  if (state.keyboardMode) w(state, "\x1b[<u");
+  w(state, "\x1b[?1049l");
+  if (state.keyboardMode) w(state, "\x1b[>1u");
   state.viewport = null;
   return main ? cursorVisualRow({ ...state, ...main }, main.row, main.col) : 0;
 }

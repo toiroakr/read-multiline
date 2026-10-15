@@ -338,6 +338,7 @@ export interface EditorState {
 
   // Input processing
   isPasting: boolean;
+  keyboardMode: boolean;
   escBuffer: string;
   escTimer: ReturnType<typeof setTimeout> | null;
 

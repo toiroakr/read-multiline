@@ -569,6 +569,40 @@ describe("Screen rendering (virtual terminal)", () => {
     },
   );
 
+  it.each(["short", "one\ntwo\nthree\nfour\nfive"])(
+    "leaves terminal modes untouched when initial highlighting throws for %j",
+    async (initialValue) => {
+      vt.term.dispose();
+      vt = createVirtualTerminal(20, 4);
+      const chunks: string[] = [];
+      const output = {
+        rows: 4,
+        columns: 20,
+        write(text: string) {
+          chunks.push(text);
+          return vt.stream.write(text);
+        },
+      } as NodeJS.WritableStream;
+      const promise = readMultiline("", {
+        input,
+        output,
+        prefix: "",
+        linePrefix: "",
+        helpFooter: false,
+        initialValue,
+        highlightLines: () => {
+          throw new Error("highlight failed");
+        },
+      });
+      await expect(promise).rejects.toThrow("highlight failed");
+      expect(input.setRawMode).not.toHaveBeenCalledWith(true);
+      expect(input.resume).not.toHaveBeenCalled();
+      expect(chunks.join("")).not.toContain("\x1b[>1u");
+      await flush(vt.term);
+      expect(vt.term.buffer.active.type).toBe("normal");
+    },
+  );
+
   it.each([true, false])(
     "balances keyboard-mode stacks across viewport entry (initial: %s)",
     async (initial) => {
@@ -604,7 +638,7 @@ describe("Screen rendering (virtual terminal)", () => {
           input.send(KEY.SHIFT_ENTER);
         }
         expect(stacks.alternate).toEqual(["editor"]);
-        expect(stacks.normal).toEqual(["caller", "editor"]);
+        expect(stacks.normal).toEqual(["caller"]);
       } finally {
         input.send(KEY.CTRL_C);
         await promise;
