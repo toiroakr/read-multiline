@@ -218,7 +218,7 @@ export function moveTo(state: EditorState, newRow: number, newCol: number): void
   if (state.viewport) {
     state.row = newRow;
     state.col = newCol;
-    renderViewport(state);
+    renderViewport(state, { reuseHighlight: true });
     return;
   }
   const currentVisualRow = cursorVisualRow(state, state.row, state.col);

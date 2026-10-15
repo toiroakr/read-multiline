@@ -783,7 +783,14 @@ describe("Screen rendering (virtual terminal)", () => {
         "four",
         "five!",
       ]);
+      highlightLines.mockClear();
+      input.send(KEY.LEFT);
+      input.send(KEY.RIGHT);
+      input.send(KEY.UP);
+      input.send(KEY.DOWN);
       input.send(KEY.CMD_UP);
+      await flush(vt.term);
+      expect(highlightLines).not.toHaveBeenCalled();
       input.send(KEY.DELETE);
       input.send(KEY.CMD_DOWN);
       await flush(vt.term);
