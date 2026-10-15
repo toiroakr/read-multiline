@@ -8,6 +8,7 @@ import {
   moveTo,
   pW,
   renderLine,
+  renderViewport,
   tCol,
   w,
 } from "./rendering.js";
@@ -17,6 +18,10 @@ import type { EditorState } from "./types.js";
 
 /** Move cursor one character to the left, crossing line boundaries */
 export function moveLeft(state: EditorState): void {
+  if (state.viewport && state.col > 0) {
+    moveTo(state, state.row, state.col - charBeforeIndex(state.lines[state.row], state.col).length);
+    return;
+  }
   if (state.col > 0) {
     const oldVR = cursorVisualRow(state, state.row, state.col);
     const oldTCol = tCol(state, state.row, state.col);
@@ -40,6 +45,10 @@ export function moveLeft(state: EditorState): void {
 
 /** Move cursor one character to the right, crossing line boundaries */
 export function moveRight(state: EditorState): void {
+  if (state.viewport && state.col < state.lines[state.row].length) {
+    moveTo(state, state.row, state.col + charAtIndex(state.lines[state.row], state.col).length);
+    return;
+  }
   if (state.col < state.lines[state.row].length) {
     const oldVR = cursorVisualRow(state, state.row, state.col);
     const oldTCol = tCol(state, state.row, state.col);
@@ -219,6 +228,13 @@ export function loadContent(
   content: string,
   cursor: "start" | "end" = "end",
 ): void {
+  if (state.viewport) {
+    state.lines = content.split("\n");
+    state.row = cursor === "start" ? 0 : state.lines.length - 1;
+    state.col = cursor === "start" ? 0 : state.lines[state.row].length;
+    renderViewport(state);
+    return;
+  }
   beginBatch(state);
   const newLines = content.split("\n");
   // Move cursor up to the first visual row of the editor area, accounting for
@@ -249,6 +265,7 @@ export function loadContent(
   }
   drawBelowEditor(state);
   flushBatch(state);
+  if (!state.viewport) renderViewport(state, true);
 }
 
 /** Navigate to the previous history entry, saving current content as draft */

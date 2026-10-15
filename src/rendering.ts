@@ -7,6 +7,7 @@ import {
   resolveStateful,
 } from "./style.js";
 import type { EditorState, Snapshot } from "./types.js";
+import { buildViewport } from "./viewport.js";
 
 /** Get the prompt header width for inline mode (0 if not inline) */
 function getPromptHeaderWidth(state: EditorState): number {
@@ -23,8 +24,22 @@ export function renderLine(state: EditorState, rowIndex: number): string {
   return state.highlight ? state.highlight(line, rowIndex) : styledInput(state, line);
 }
 
+export function renderViewport(state: EditorState, allowEnter = false): boolean {
+  const cached = state.highlightedLines;
+  state.highlightedLines = null;
+  const frame = buildViewport(state, (row) => renderLine(state, row), allowEnter);
+  if (!frame) {
+    state.highlightedLines = cached;
+    return false;
+  }
+  state.viewport = { top: frame.top };
+  w(state, "\x1b[?25l" + frame.output + "\x1b[?25h");
+  return true;
+}
+
 /** Write text to the output stream (or buffer if batching) */
 export function w(state: EditorState, text: string): void {
+  if (state.isPasting && state.viewport) return;
   if (state.buffering) {
     state.writeBuffer += text;
   } else {
@@ -166,6 +181,12 @@ export function styledInput(state: EditorState, text: string): string {
 
 /** Move terminal cursor from current position to (newRow, newCol) */
 export function moveTo(state: EditorState, newRow: number, newCol: number): void {
+  if (state.viewport) {
+    state.row = newRow;
+    state.col = newCol;
+    renderViewport(state);
+    return;
+  }
   const currentVisualRow = cursorVisualRow(state, state.row, state.col);
   const newVisualRow = cursorVisualRow(state, newRow, newCol);
   const dr = newVisualRow - currentVisualRow;
@@ -178,6 +199,10 @@ export function moveTo(state: EditorState, newRow: number, newCol: number): void
 
 /** Draw status line and footer below the editor content, then return cursor to position */
 export function drawBelowEditor(state: EditorState): void {
+  if (state.viewport) {
+    renderViewport(state);
+    return;
+  }
   if (!state.statusText && !state.footerText) return;
 
   const currentVisualRow = cursorVisualRow(state, state.row, state.col);
@@ -217,10 +242,12 @@ export function drawBelowEditor(state: EditorState): void {
   const upCount = endVisualRow - currentVisualRow + linesBelow;
   if (upCount > 0) w(state, `\x1b[${upCount}A`);
   w(state, `\x1b[${tCol(state, state.row, state.col)}G`);
+  renderViewport(state, true);
 }
 
 /** Clear everything below the editor (status + footer) and return cursor to position */
 function clearBelowAndReturn(state: EditorState): void {
+  if (state.viewport) return;
   const currentVisualRow = cursorVisualRow(state, state.row, state.col);
   const endVisualRow = lastVisualRow(state);
   const dr = endVisualRow - currentVisualRow;
@@ -258,6 +285,12 @@ export function setFooter(state: EditorState, text: string): void {
 
 /** Clear all content below the editor (status and footer) for cleanup */
 export function clearBelowEditor(state: EditorState): void {
+  if (state.viewport) {
+    state.statusText = "";
+    state.statusColor = "";
+    state.footerText = "";
+    return;
+  }
   if (!state.statusText && !state.footerText) return;
   clearBelowAndReturn(state);
   state.statusText = "";
@@ -319,7 +352,13 @@ export function redrawFrom(
   targetCol: number,
   options?: { previousCursorVisualRow?: number },
 ): void {
-  if (state.highlightLines) fromRow = 0;
+  if (state.viewport && !state.isPasting) {
+    state.row = targetRow;
+    state.col = targetCol;
+    renderViewport(state);
+    return;
+  }
+  if (state.highlightLines && !state.isPasting) fromRow = 0;
   beginBatch(state);
   const currentVisualRow =
     options?.previousCursorVisualRow ?? cursorVisualRow(state, state.row, state.col);
@@ -349,6 +388,7 @@ export function redrawFrom(
 
   drawBelowEditor(state);
   flushBatch(state);
+  if (!state.viewport) renderViewport(state, true);
 }
 
 /**
@@ -357,6 +397,7 @@ export function redrawFrom(
  *   state.promptHeaderHeight when the visual state has just changed)
  */
 function fullRedraw(state: EditorState, rewindHeaderHeight?: number): void {
+  if (renderViewport(state, true)) return;
   beginBatch(state);
   const upCount = cursorVisualRow(
     state,
@@ -410,6 +451,13 @@ export function clearScreen(state: EditorState): void {
 
 /** Restore editor state from a snapshot and redraw */
 export function restoreSnapshot(state: EditorState, snap: Snapshot): void {
+  if (state.viewport) {
+    state.lines = [...snap.lines];
+    state.row = snap.row;
+    state.col = snap.col;
+    renderViewport(state);
+    return;
+  }
   beginBatch(state);
   const currentVisualRow = cursorVisualRow(state, state.row, state.col);
   const inputStartVisualRow = state.inlinePrompt ? 0 : state.promptHeaderHeight;
@@ -437,6 +485,7 @@ export function restoreSnapshot(state: EditorState, snap: Snapshot): void {
   state.col = snap.col;
   drawBelowEditor(state);
   flushBatch(state);
+  if (!state.viewport) renderViewport(state, true);
 }
 
 /** Redraw current line after deleting characters of the given display width at cursor */

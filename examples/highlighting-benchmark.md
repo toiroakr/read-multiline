@@ -96,10 +96,11 @@ machine. A highlighter speedup is not an end-to-end editor speedup; consult raw
 samples before relying on a ratio. Neither correctness nor performance across all
 SQL dialects and GraphQL documents is established here.
 
-`highlightLines` redraws the complete buffer after each edit because changing a
+`highlightLines` parses the complete buffer after each edit because changing a
 later token can also recolor earlier lines. Its result is reused for every line in
-that redraw, and bracketed paste is highlighted after completion. Full-buffer
-parsing and repainting cost grows with input size. The existing `highlight` callback
+that redraw. Tall buffers paint only the visible viewport when the output stream
+provides terminal dimensions. Paste retains incremental output until completion,
+then highlights once. Full-buffer parsing cost still grows with input size. The existing `highlight` callback
 retains its line-based behavior for consumers that do not need cross-line context.
 
 The Twinkleplop adapter resets ANSI styling at each line boundary inside multiline

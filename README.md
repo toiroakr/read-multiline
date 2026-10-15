@@ -158,6 +158,13 @@ Bracketed paste is highlighted after the paste completes. Initial content,
 history, undo/redo, terminal resize and preserved answers use the same callback;
 `theme.answer`/`theme.cancelAnswer` still take precedence for final answers.
 
+When the output stream supplies `rows` and `columns`, input taller than the terminal
+uses a viewport. Cursor movement reveals offscreen lines, footers remain visible,
+and edits repaint visible rows without appending duplicate input to scrollback.
+The viewport also handles wrapping, history, undo/redo, and terminal resize. Once
+entered, it remains active until the prompt finishes. Custom output streams can
+provide these dimensions to enable the same behavior.
+
 Full-document highlighting processes the entire buffer for each edit. Use the
 line callback when you do not need cross-line context or want to avoid this cost
 for large buffers.
