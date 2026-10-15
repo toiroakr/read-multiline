@@ -418,7 +418,7 @@ function readFromTTY(
       w(state, `\x1b[${tCol(state, state.row, state.col)}G`);
     }
 
-    renderViewport(state, true, true);
+    renderViewport(state, { allowEnter: true, reuseHighlight: true });
     input.setRawMode?.(true);
     input.resume();
     w(state, "\x1b[>1u"); // Enable kitty keyboard protocol

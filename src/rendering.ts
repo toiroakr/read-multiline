@@ -24,10 +24,30 @@ export function renderLine(state: EditorState, rowIndex: number): string {
   return state.highlight ? state.highlight(line, rowIndex) : styledInput(state, line);
 }
 
+type MainScreen = NonNullable<EditorState["viewport"]>["main"];
+
+function captureMainScreen(state: EditorState): MainScreen {
+  return {
+    lines: [...state.lines],
+    row: state.row,
+    col: state.col,
+    promptHeader: state.promptHeader,
+    promptHeaderHeight: state.promptHeaderHeight,
+    linePrefixWidth: state.linePrefixWidth,
+  };
+}
+
 export function renderViewport(
   state: EditorState,
-  allowEnter = false,
-  reuseHighlight = false,
+  {
+    allowEnter = false,
+    reuseHighlight = false,
+    main,
+  }: {
+    allowEnter?: boolean;
+    reuseHighlight?: boolean;
+    main?: MainScreen;
+  } = {},
 ): boolean {
   const cached = state.highlightedLines;
   if (!reuseHighlight) state.highlightedLines = null;
@@ -36,16 +56,9 @@ export function renderViewport(
     state.highlightedLines = cached;
     return false;
   }
-  const main = state.viewport?.main ?? {
-    lines: [...state.lines],
-    row: state.row,
-    col: state.col,
-    promptHeader: state.promptHeader,
-    promptHeaderHeight: state.promptHeaderHeight,
-    linePrefixWidth: state.linePrefixWidth,
-  };
+  const savedMain = state.viewport?.main ?? main ?? captureMainScreen(state);
   if (!state.viewport) w(state, "\x1b[?1049h");
-  state.viewport = { top: frame.top, main };
+  state.viewport = { top: frame.top, main: savedMain };
   w(state, "\x1b[?25l" + frame.output + "\x1b[?25h");
   return true;
 }
@@ -263,7 +276,7 @@ export function drawBelowEditor(state: EditorState): void {
   const upCount = endVisualRow - currentVisualRow + linesBelow;
   if (upCount > 0) w(state, `\x1b[${upCount}A`);
   w(state, `\x1b[${tCol(state, state.row, state.col)}G`);
-  renderViewport(state, true, true);
+  renderViewport(state, { allowEnter: true, reuseHighlight: true });
 }
 
 /** Clear everything below the editor (status + footer) and return cursor to position */
@@ -345,14 +358,12 @@ export function setStatusWithVisualState(
 ): void {
   const visualChanged = state.visualState !== visualState;
   if (visualChanged) {
-    // Capture old header height before updating, for correct cursor rewind
-    const oldHeaderHeight = state.promptHeaderHeight;
-    setVisualState(state, visualState);
-    // Full redraw since prefix/linePrefix changed
+    const main = captureMainScreen(state);
     if (state.statusText || state.footerText) clearBelowAndReturn(state);
+    setVisualState(state, visualState);
     state.statusText = text;
     state.statusColor = color;
-    fullRedraw(state, oldHeaderHeight);
+    fullRedraw(state, main);
   } else {
     setStatus(state, text, color);
   }
@@ -408,23 +419,14 @@ export function redrawFrom(
 
   drawBelowEditor(state);
   flushBatch(state);
-  if (!state.viewport) renderViewport(state, true, true);
+  if (!state.viewport) renderViewport(state, { allowEnter: true, reuseHighlight: true });
 }
 
-/**
- * Full redraw: rewind cursor, redraw prompt header and all input lines, restore cursor.
- * @param rewindHeaderHeight - header height to use for cursor rewind (may differ from current
- *   state.promptHeaderHeight when the visual state has just changed)
- */
-function fullRedraw(state: EditorState, rewindHeaderHeight?: number): void {
-  if (renderViewport(state, true)) return;
+function fullRedraw(state: EditorState, main?: MainScreen): void {
+  if (renderViewport(state, { allowEnter: true, main })) return;
   beginBatch(state);
-  const upCount = cursorVisualRow(
-    state,
-    state.row,
-    state.col,
-    rewindHeaderHeight ?? state.promptHeaderHeight,
-  );
+  const origin = main ? { ...state, ...main } : state;
+  const upCount = cursorVisualRow(origin, origin.row, origin.col);
   if (upCount > 0) w(state, `\x1b[${upCount}A`);
   w(state, "\r");
 
@@ -505,7 +507,7 @@ export function restoreSnapshot(state: EditorState, snap: Snapshot): void {
   state.col = snap.col;
   drawBelowEditor(state);
   flushBatch(state);
-  if (!state.viewport) renderViewport(state, true, true);
+  if (!state.viewport) renderViewport(state, { allowEnter: true, reuseHighlight: true });
 }
 
 /** Redraw current line after deleting characters of the given display width at cursor */

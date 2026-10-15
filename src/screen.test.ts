@@ -505,6 +505,36 @@ describe("Screen rendering (virtual terminal)", () => {
     expect(screenLine(vt.term, 0)).toBe("earlier output");
   });
 
+  it("preserves earlier output when validation changes the header height", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(20, 4);
+    Object.assign(vt.stream, { rows: 4 });
+    vt.stream.write("earlier output\r\n");
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: { pending: "", error: "Error", submitted: "" },
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "one\ntwo\nthree",
+      highlightLines: (lines) => lines,
+      validate: () => "error\nmore\nhelp",
+    });
+    input.send(KEY.ENTER);
+    await flush(vt.term);
+    expect(vt.term.buffer.normal.getLine(0)?.translateToString(true)).toBe("earlier output");
+    vt.term.resize(20, 8);
+    Object.assign(vt.stream, { rows: 8 });
+    input.send(KEY.CTRL_L);
+    await flush(vt.term);
+    expect(vt.term.buffer.normal.getLine(0)?.translateToString(true)).toBe("earlier output");
+    input.send(KEY.CTRL_C);
+    await promise;
+    await flush(vt.term);
+    expect(vt.term.buffer.active.type).toBe("normal");
+    expect(screenLine(vt.term, 0)).toBe("earlier output");
+  });
+
   it("does not duplicate tall input in scrollback when editing the last line", async () => {
     vt.term.dispose();
     vt = createVirtualTerminal(20, 4);
