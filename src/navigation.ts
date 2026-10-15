@@ -265,7 +265,7 @@ export function loadContent(
   }
   drawBelowEditor(state);
   flushBatch(state);
-  if (!state.viewport) renderViewport(state, true);
+  if (!state.viewport) renderViewport(state, true, true);
 }
 
 /** Navigate to the previous history entry, saving current content as draft */

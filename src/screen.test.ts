@@ -389,6 +389,94 @@ describe("Screen rendering (virtual terminal)", () => {
     }
   });
 
+  it("parses tall initial content only once when entering the viewport", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(20, 4);
+    Object.assign(vt.stream, { rows: 4 });
+    const highlightLines = vi.fn((lines: readonly string[]) => lines);
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "one\ntwo\nthree\nfour\nfive",
+      highlightLines,
+    });
+    try {
+      await flush(vt.term);
+      expect(highlightLines).toHaveBeenCalledTimes(1);
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it("bounds replayed styles when a long highlighted line wraps", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(20, 4);
+    const chunks: string[] = [];
+    const output = {
+      rows: 4,
+      columns: 20,
+      write(text: string) {
+        chunks.push(text);
+        return vt.stream.write(text);
+      },
+    } as NodeJS.WritableStream;
+    const promise = readMultiline("", {
+      input,
+      output,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "a".repeat(400),
+      highlightLines: (lines) =>
+        lines.map((line) => [...line].map((char) => `\x1b[38;2;10;20;30m${char}\x1b[39m`).join("")),
+    });
+    try {
+      await flush(vt.term);
+      chunks.length = 0;
+      input.send("!");
+      await flush(vt.term);
+      expect(chunks.join("").length).toBeLessThan(3000);
+      expect(vt.term.buffer.active.getLine(3)?.getCell(0)?.getFgColor()).toBe(0x0a141e);
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it("preserves earlier terminal output when validation enters a viewport", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(20, 4);
+    Object.assign(vt.stream, { rows: 4 });
+    vt.stream.write("earlier output\r\n");
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "one\ntwo\nthree",
+      highlightLines: (lines) => lines,
+      validate: () => "error\nmore\nhelp",
+    });
+    input.send(KEY.ENTER);
+    await flush(vt.term);
+    expect(vt.term.buffer.normal.getLine(0)?.translateToString(true)).toBe("earlier output");
+    vt.term.resize(20, 8);
+    Object.assign(vt.stream, { rows: 8 });
+    input.send(KEY.CTRL_L);
+    await flush(vt.term);
+    expect(vt.term.buffer.normal.getLine(0)?.translateToString(true)).toBe("earlier output");
+    input.send(KEY.CTRL_C);
+    await promise;
+    await flush(vt.term);
+    expect(vt.term.buffer.active.type).toBe("normal");
+    expect(screenLine(vt.term, 0)).toBe("earlier output");
+  });
+
   it("does not duplicate tall input in scrollback when editing the last line", async () => {
     vt.term.dispose();
     vt = createVirtualTerminal(20, 4);
@@ -582,9 +670,9 @@ describe("Screen rendering (virtual terminal)", () => {
         vt.term.resize(10, 3);
         output.columns = 10;
         output.rows = 3;
-        const base = vt.term.buffer.active.baseY;
         output.emit("resize");
         await flush(vt.term);
+        const base = vt.term.buffer.active.baseY;
         expect(screenLine(vt.term, base)).toBe("four");
         expect(screenLine(vt.term, base + 2)).toBe("six");
         expect(vt.term.buffer.active.baseY).toBe(base);

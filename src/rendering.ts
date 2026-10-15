@@ -24,17 +24,38 @@ export function renderLine(state: EditorState, rowIndex: number): string {
   return state.highlight ? state.highlight(line, rowIndex) : styledInput(state, line);
 }
 
-export function renderViewport(state: EditorState, allowEnter = false): boolean {
+export function renderViewport(
+  state: EditorState,
+  allowEnter = false,
+  reuseHighlight = false,
+): boolean {
   const cached = state.highlightedLines;
-  state.highlightedLines = null;
+  if (!reuseHighlight) state.highlightedLines = null;
   const frame = buildViewport(state, (row) => renderLine(state, row), allowEnter);
   if (!frame) {
     state.highlightedLines = cached;
     return false;
   }
-  state.viewport = { top: frame.top };
+  const main = state.viewport?.main ?? {
+    lines: [...state.lines],
+    row: state.row,
+    col: state.col,
+    promptHeader: state.promptHeader,
+    promptHeaderHeight: state.promptHeaderHeight,
+    linePrefixWidth: state.linePrefixWidth,
+  };
+  if (!state.viewport) w(state, "\x1b[?1049h");
+  state.viewport = { top: frame.top, main };
   w(state, "\x1b[?25l" + frame.output + "\x1b[?25h");
   return true;
+}
+
+export function leaveViewport(state: EditorState): number | null {
+  if (!state.viewport) return null;
+  const main = state.viewport.main;
+  w(state, "\x1b[?1049l");
+  state.viewport = null;
+  return cursorVisualRow({ ...state, ...main }, main.row, main.col);
 }
 
 /** Write text to the output stream (or buffer if batching) */
@@ -242,7 +263,7 @@ export function drawBelowEditor(state: EditorState): void {
   const upCount = endVisualRow - currentVisualRow + linesBelow;
   if (upCount > 0) w(state, `\x1b[${upCount}A`);
   w(state, `\x1b[${tCol(state, state.row, state.col)}G`);
-  renderViewport(state, true);
+  renderViewport(state, true, true);
 }
 
 /** Clear everything below the editor (status + footer) and return cursor to position */
@@ -388,7 +409,7 @@ export function redrawFrom(
 
   drawBelowEditor(state);
   flushBatch(state);
-  if (!state.viewport) renderViewport(state, true);
+  if (!state.viewport) renderViewport(state, true, true);
 }
 
 /**
@@ -485,7 +506,7 @@ export function restoreSnapshot(state: EditorState, snap: Snapshot): void {
   state.col = snap.col;
   drawBelowEditor(state);
   flushBatch(state);
-  if (!state.viewport) renderViewport(state, true);
+  if (!state.viewport) renderViewport(state, true, true);
 }
 
 /** Redraw current line after deleting characters of the given display width at cursor */

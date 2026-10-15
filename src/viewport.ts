@@ -2,23 +2,86 @@ import { charWidth } from "./chars.js";
 import { applyStyle } from "./style.js";
 import type { EditorState } from "./types.js";
 
+const SGR_RESETS = new Map<number, number[]>([
+  [22, [1, 2]],
+  [23, [3, 20]],
+  [24, [4]],
+  [25, [5]],
+  [27, [7]],
+  [28, [8]],
+  [29, [9]],
+  [39, [38]],
+  [49, [48]],
+  [50, [26]],
+  [54, [51]],
+  [55, [53]],
+  [59, [58]],
+  [65, [60]],
+  [75, [73]],
+]);
+
+function updateSgr(style: Map<number, string>, sequence: string): void {
+  const params = sequence.slice(2, -1).split(";");
+  for (let index = 0; index < params.length; index++) {
+    const value = params[index];
+    const code = Number(value.split(":")[0]);
+    if (code === 0) {
+      style.clear();
+      continue;
+    }
+    if (code === 38 || code === 48 || code === 58) {
+      if (value.includes(":")) style.set(code, value);
+      else {
+        const count = params[index + 1] === "2" ? 4 : 2;
+        style.set(code, params.slice(index, index + count + 1).join(";"));
+        index += count;
+      }
+      continue;
+    }
+    const reset = SGR_RESETS.get(code);
+    if (reset) {
+      for (const key of reset) style.delete(key);
+      continue;
+    }
+    const group =
+      (code >= 30 && code <= 37) || (code >= 90 && code <= 97)
+        ? 38
+        : (code >= 40 && code <= 47) || (code >= 100 && code <= 107)
+          ? 48
+          : code >= 10 && code <= 19
+            ? 10
+            : code === 21
+              ? 4
+              : code === 6
+                ? 5
+                : code === 52
+                  ? 51
+                  : code >= 60 && code <= 64
+                    ? 60
+                    : code === 74
+                      ? 73
+                      : code;
+    style.set(group, value);
+  }
+}
+
 function wrap(text: string, columns: number): { lines: string[]; column: number } {
   const lines: string[] = [];
   let line = "";
   let column = 0;
-  let style = "";
+  const style = new Map<number, string>();
   for (const part of text.match(/\x1b\[[0-?]*[ -/]*[@-~]|[^]/gu) ?? []) {
     if (part.startsWith("\x1b")) {
       line += part;
       if (part.endsWith("m")) {
-        style = part === "\x1b[0m" || part === "\x1b[m" ? "" : style + part;
+        updateSgr(style, part);
       }
       continue;
     }
     const width = charWidth(part.codePointAt(0)!);
     if (part === "\n" || (width > 0 && column + width > columns)) {
       lines.push(line + "\x1b[0m");
-      line = style;
+      line = style.size ? `\x1b[${[...style.values()].join(";")}m` : "";
       column = 0;
     }
     if (part !== "\n") {

@@ -354,7 +354,13 @@ export interface EditorState {
   highlight: ((line: string, lineIndex: number) => string) | undefined;
   highlightLines: ((lines: readonly string[]) => readonly string[]) | undefined;
   highlightedLines: readonly string[] | null;
-  viewport: { top: number } | null;
+  viewport: {
+    top: number;
+    main: Pick<
+      EditorState,
+      "lines" | "row" | "col" | "promptHeader" | "promptHeaderHeight" | "linePrefixWidth"
+    >;
+  } | null;
   transform:
     | ((state: TransformState, event: TransformEvent) => TransformState | undefined)
     | undefined;

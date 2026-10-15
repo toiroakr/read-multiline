@@ -159,7 +159,8 @@ history, undo/redo, terminal resize and preserved answers use the same callback;
 `theme.answer`/`theme.cancelAnswer` still take precedence for final answers.
 
 When the output stream supplies `rows` and `columns`, input taller than the terminal
-uses a viewport. Cursor movement reveals offscreen lines, footers remain visible,
+uses a viewport in the terminal’s alternate screen, preserving earlier terminal output.
+The main screen is restored when the prompt finishes. Cursor movement reveals offscreen lines, footers remain visible,
 and edits repaint visible rows without appending duplicate input to scrollback.
 The viewport also handles wrapping, history, undo/redo, and terminal resize. Once
 entered, it remains active until the prompt finishes. Custom output streams can
