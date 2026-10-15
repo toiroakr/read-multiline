@@ -98,6 +98,746 @@ describe("Screen rendering (virtual terminal)", () => {
   });
 
   // --- Basic rendering ---
+  it("updates highlighting on other lines when a multiline delimiter is edited", async () => {
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "/*\nbody\n*/\nSELECT",
+      highlightLines: (lines: readonly string[]) => {
+        let inComment = false;
+        return lines.map((line) => {
+          if (line === "/*") inComment = true;
+          const rendered = inComment ? `\x1b[31m${line}\x1b[0m` : line;
+          if (line === "*/") inComment = false;
+          return rendered;
+        });
+      },
+    });
+    try {
+      await flush(vt.term);
+      expect(vt.term.buffer.active.getLine(1)?.getCell(0)?.getFgColor()).toBe(1);
+      input.send(KEY.CMD_UP);
+      input.send(KEY.DELETE);
+      await flush(vt.term);
+      expect(screenLine(vt.term, 0)).toBe("*");
+      expect(screenLine(vt.term, 1)).toBe("body");
+      expect(vt.term.buffer.active.getLine(1)?.getCell(0)?.isFgDefault()).toBe(true);
+      input.send(KEY.CTRL_Z);
+      await flush(vt.term);
+      expect(vt.term.buffer.active.getLine(1)?.getCell(0)?.getFgColor()).toBe(1);
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+  it.each([
+    { name: "insert", initial: "/\nbody", keys: [KEY.CMD_UP, KEY.END, "*"], row: 1, color: 1 },
+    {
+      name: "backspace",
+      initial: "/*\nbody",
+      keys: [KEY.CMD_UP, KEY.END, KEY.BACKSPACE],
+      row: 1,
+      color: -1,
+    },
+    { name: "delete", initial: "/*\nbody", keys: [KEY.CMD_UP, KEY.DELETE], row: 1, color: -1 },
+    {
+      name: "delete to start",
+      initial: "/*\nbody",
+      keys: [KEY.CMD_UP, KEY.END, KEY.CTRL_U],
+      row: 1,
+      color: -1,
+    },
+    {
+      name: "delete to end",
+      initial: "/*\nbody",
+      keys: [KEY.CMD_UP, KEY.CTRL_K],
+      row: 1,
+      color: -1,
+    },
+    {
+      name: "delete word",
+      initial: "/*\nbody",
+      keys: [KEY.CMD_UP, KEY.END, KEY.CTRL_W],
+      row: 1,
+      color: -1,
+    },
+    {
+      name: "split line",
+      initial: "/*\nbody",
+      keys: [KEY.CMD_UP, KEY.RIGHT, KEY.SHIFT_ENTER],
+      row: 2,
+      color: -1,
+    },
+    {
+      name: "merge backspace",
+      initial: "/\n*\nbody",
+      keys: [KEY.CMD_UP, KEY.DOWN, KEY.BACKSPACE],
+      row: 1,
+      color: 1,
+    },
+    {
+      name: "merge delete",
+      initial: "/\n*\nbody",
+      keys: [KEY.CMD_UP, KEY.END, KEY.DELETE],
+      row: 1,
+      color: 1,
+    },
+  ])("recolors the document after $name", async ({ initial, keys, row, color }) => {
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: initial,
+      highlightLines: (lines) =>
+        lines.map((line) => (lines[0] === "/*" ? `\x1b[31m${line}\x1b[0m` : line)),
+    });
+    try {
+      for (const key of keys) input.send(key);
+      await flush(vt.term);
+      expect(screenLine(vt.term, row)).toBe("body");
+      expect(vt.term.buffer.active.getLine(row)?.getCell(0)?.getFgColor()).toBe(color);
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it("uses one document snapshot per redraw and prioritizes it over line highlighting", async () => {
+    const snapshots: string[][] = [];
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "one\ntwo\nthree",
+      highlight: () => "wrong",
+      highlightLines: (lines) => {
+        snapshots.push([...lines]);
+        return lines;
+      },
+    });
+    try {
+      expect(snapshots).toEqual([["one", "two", "three"]]);
+      input.send("!");
+      await flush(vt.term);
+      expect(snapshots).toEqual([
+        ["one", "two", "three"],
+        ["one", "two", "three!"],
+      ]);
+      expect(screenLine(vt.term, 0)).toBe("one");
+      expect(screenLine(vt.term, 2)).toBe("three!");
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it("preserves inline headers, wrapped rows and the footer during document recoloring", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12);
+    const promise = readMultiline("SQL: ", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "| ",
+      inlinePrompt: true,
+      helpFooter: false,
+      footer: "hint",
+      initialValue: "123456\nbody",
+      highlightLines: (lines) =>
+        lines.map((line) => (lines.join("\n").includes("/*") ? `\x1b[31m${line}\x1b[0m` : line)),
+    });
+    try {
+      input.send(KEY.CMD_UP);
+      input.send(KEY.END);
+      input.send("/");
+      input.send("*");
+      await flush(vt.term);
+      expect(screenLine(vt.term, 0)).toBe("SQL: 123456/");
+      expect(screenLine(vt.term, 1)).toBe("*");
+      expect(screenLine(vt.term, 2)).toBe("| body");
+      expect(screenLine(vt.term, 3)).toBe("hint");
+      expect(vt.term.buffer.active.getLine(2)?.getCell(2)?.getFgColor()).toBe(1);
+      input.send(KEY.CTRL_U);
+      await flush(vt.term);
+      expect(screenLine(vt.term, 0)).toBe("SQL:");
+      expect(screenLine(vt.term, 1)).toBe("| body");
+      expect(screenLine(vt.term, 2)).toBe("hint");
+      expect(cursorPos(vt.term)).toEqual({ x: 5, y: 0 });
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it("preserves an inline header that wraps before the input starts", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12);
+    const promise = readMultiline("ABCDEFGHIJKLM", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      inlinePrompt: true,
+      helpFooter: false,
+      initialValue: "a\nb",
+      highlightLines: (lines) => [...lines],
+    });
+    try {
+      input.send("!");
+      await flush(vt.term);
+      expect(screenLine(vt.term, 0)).toBe("ABCDEFGHIJKL");
+      expect(screenLine(vt.term, 1)).toBe("Ma");
+      expect(screenLine(vt.term, 2)).toBe("b!");
+      expect(cursorPos(vt.term)).toEqual({ x: 2, y: 2 });
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it.each(["a", "a\nb"])(
+    "preserves an exact-width inline header while editing %j",
+    async (initialValue) => {
+      vt.term.dispose();
+      vt = createVirtualTerminal(12);
+      const promise = readMultiline("ABCDEFGHIJKL", {
+        input,
+        output: vt.stream,
+        prefix: "",
+        linePrefix: "",
+        inlinePrompt: true,
+        helpFooter: false,
+        initialValue,
+        highlightLines: (lines) => lines,
+      });
+      try {
+        input.send("!");
+        await flush(vt.term);
+        expect(screenLine(vt.term, 0)).toBe("ABCDEFGHIJKL");
+        expect(screenLine(vt.term, 1)).toBe(initialValue.includes("\n") ? "a" : "a!");
+        if (initialValue.includes("\n")) expect(screenLine(vt.term, 2)).toBe("b!");
+      } finally {
+        input.send(KEY.CTRL_C);
+        await promise;
+      }
+    },
+  );
+
+  it("recolors earlier lines when a later line changes", async () => {
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "one\ntwo",
+      highlightLines: (lines) =>
+        lines.map((line) => (lines.at(-1)?.endsWith("!") ? `\x1b[31m${line}\x1b[0m` : line)),
+    });
+    try {
+      input.send("!");
+      await flush(vt.term);
+      expect(screenLine(vt.term, 0)).toBe("one");
+      expect(vt.term.buffer.active.getLine(0)?.getCell(0)?.getFgColor()).toBe(1);
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it("highlights the final transformed document once per edit", async () => {
+    const snapshots: string[][] = [];
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "/\nbody",
+      transform: (state, event) =>
+        event.type === "insert" ? { ...state, lines: ["/*", "body"], row: 0, col: 2 } : undefined,
+      highlightLines: (lines) => {
+        snapshots.push([...lines]);
+        return lines.map((line) => (lines[0] === "/*" ? `\x1b[31m${line}\x1b[0m` : line));
+      },
+    });
+    try {
+      input.send("*");
+      await flush(vt.term);
+      expect(snapshots).toEqual([
+        ["/", "body"],
+        ["/*", "body"],
+      ]);
+      expect(vt.term.buffer.active.getLine(1)?.getCell(0)?.getFgColor()).toBe(1);
+      expect(cursorPos(vt.term)).toEqual({ x: 2, y: 0 });
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it("does not repaint the growing document during bracketed paste", async () => {
+    const chunks: string[] = [];
+    const highlightLines = vi.fn((lines: readonly string[]) => lines);
+    const output = {
+      columns: 80,
+      write(text: string) {
+        chunks.push(text);
+        return vt.stream.write(text);
+      },
+    } as NodeJS.WritableStream;
+    const promise = readMultiline("", {
+      input,
+      output,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      highlightLines,
+    });
+    try {
+      input.send("\x1b[200~first\nsecond\nthird\nfourth\nfifth");
+      await flush(vt.term);
+      expect(chunks.join("").split("first").length - 1).toBeLessThanOrEqual(2);
+      expect(highlightLines).not.toHaveBeenCalled();
+      input.send("\x1b[201~");
+      await flush(vt.term);
+      expect(highlightLines).toHaveBeenCalledTimes(1);
+      expect(screenLine(vt.term, 4)).toBe("fifth");
+    } finally {
+      input.send("\x1b[201~");
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it("parses tall initial content only once when entering the viewport", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(20, 4);
+    Object.assign(vt.stream, { rows: 4 });
+    const highlightLines = vi.fn((lines: readonly string[]) => lines);
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "one\ntwo\nthree\nfour\nfive",
+      highlightLines,
+    });
+    try {
+      await flush(vt.term);
+      expect(highlightLines).toHaveBeenCalledTimes(1);
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it("bounds replayed styles when a long highlighted line wraps", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(20, 4);
+    const chunks: string[] = [];
+    const output = {
+      rows: 4,
+      columns: 20,
+      write(text: string) {
+        chunks.push(text);
+        return vt.stream.write(text);
+      },
+    } as NodeJS.WritableStream;
+    const promise = readMultiline("", {
+      input,
+      output,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "a".repeat(400),
+      highlightLines: (lines) =>
+        lines.map((line) => [...line].map((char) => `\x1b[38;2;10;20;30m${char}\x1b[39m`).join("")),
+    });
+    try {
+      await flush(vt.term);
+      chunks.length = 0;
+      input.send("!");
+      await flush(vt.term);
+      expect(chunks.join("").length).toBeLessThan(3000);
+      expect(vt.term.buffer.active.getLine(3)?.getCell(0)?.getFgColor()).toBe(0x0a141e);
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it("preserves earlier terminal output when validation enters a viewport", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(20, 4);
+    Object.assign(vt.stream, { rows: 4 });
+    vt.stream.write("earlier output\r\n");
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "one\ntwo\nthree",
+      highlightLines: (lines) => lines,
+      validate: () => "error\nmore\nhelp",
+    });
+    input.send(KEY.ENTER);
+    await flush(vt.term);
+    expect(vt.term.buffer.normal.getLine(0)?.translateToString(true)).toBe("earlier output");
+    vt.term.resize(20, 8);
+    Object.assign(vt.stream, { rows: 8 });
+    input.send(KEY.CTRL_L);
+    await flush(vt.term);
+    expect(vt.term.buffer.normal.getLine(0)?.translateToString(true)).toBe("earlier output");
+    input.send(KEY.CTRL_C);
+    await promise;
+    await flush(vt.term);
+    expect(vt.term.buffer.active.type).toBe("normal");
+    expect(screenLine(vt.term, 0)).toBe("earlier output");
+  });
+
+  it("preserves earlier output when validation changes the header height", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(20, 4);
+    Object.assign(vt.stream, { rows: 4 });
+    vt.stream.write("earlier output\r\n");
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: { pending: "", error: "Error", submitted: "" },
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "one\ntwo\nthree",
+      highlightLines: (lines) => lines,
+      validate: () => "error\nmore\nhelp",
+    });
+    input.send(KEY.ENTER);
+    await flush(vt.term);
+    expect(vt.term.buffer.normal.getLine(0)?.translateToString(true)).toBe("earlier output");
+    vt.term.resize(20, 8);
+    Object.assign(vt.stream, { rows: 8 });
+    input.send(KEY.CTRL_L);
+    await flush(vt.term);
+    expect(vt.term.buffer.normal.getLine(0)?.translateToString(true)).toBe("earlier output");
+    input.send(KEY.CTRL_C);
+    await promise;
+    await flush(vt.term);
+    expect(vt.term.buffer.active.type).toBe("normal");
+    expect(screenLine(vt.term, 0)).toBe("earlier output");
+  });
+
+  it("does not duplicate tall input in scrollback when editing the last line", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(20, 4);
+    Object.assign(vt.stream, { rows: 4 });
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "one\ntwo\nthree\nfour\nfive\nsix",
+      highlightLines: (lines) => lines,
+    });
+    try {
+      await flush(vt.term);
+      const scrollback = vt.term.buffer.active.baseY;
+      input.send("!");
+      await flush(vt.term);
+      expect(vt.term.buffer.active.baseY).toBe(scrollback);
+      expect(screenLine(vt.term, scrollback + 3)).toBe("six!");
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it("navigates and edits both ends of tall input without adding scrollback", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(20, 4);
+    Object.assign(vt.stream, { rows: 4 });
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "one\ntwo\nthree\nfour\nfive\nsix",
+      highlightLines: (lines) => lines,
+    });
+    await flush(vt.term);
+    const base = vt.term.buffer.active.baseY;
+    input.send(KEY.CMD_UP);
+    await flush(vt.term);
+    expect(screenLine(vt.term, base)).toBe("one");
+    expect(cursorPos(vt.term)).toEqual({ x: 0, y: 0 });
+    input.send("X");
+    input.send(KEY.CMD_DOWN);
+    input.send(KEY.CTRL_L);
+    input.send(KEY.LEFT);
+    input.send("Y");
+    input.send(KEY.CTRL_Z);
+    input.send(KEY.CTRL_Y);
+    await flush(vt.term);
+    expect(screenLine(vt.term, base + 3)).toBe("siYx");
+    expect(vt.term.buffer.active.baseY).toBe(base);
+    input.send(KEY.ENTER);
+    expect(await promise).toEqual(["Xone\ntwo\nthree\nfour\nfive\nsiYx", null]);
+  });
+
+  it("pins the footer when growing into a viewport and stops scrolling on later edits", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(20, 4);
+    Object.assign(vt.stream, { rows: 4 });
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      footer: "hint",
+      initialValue: "one\ntwo\nthree",
+      highlightLines: (lines) => lines,
+    });
+    try {
+      input.send(KEY.SHIFT_ENTER);
+      await flush(vt.term);
+      const base = vt.term.buffer.active.baseY;
+      expect(screenLine(vt.term, base + 3)).toBe("hint");
+      input.send("X");
+      await flush(vt.term);
+      expect(screenLine(vt.term, base + 2)).toBe("X");
+      expect(screenLine(vt.term, base + 3)).toBe("hint");
+      expect(cursorPos(vt.term)).toEqual({ x: 1, y: 2 });
+      expect(vt.term.buffer.active.baseY).toBe(base);
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it("clips styled wrapped lines and positions the cursor across a CJK wrap", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(8, 4);
+    Object.assign(vt.stream, { rows: 4 });
+    const promise = readMultiline("P", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "| ",
+      helpFooter: false,
+      footer: "hint",
+      initialValue: "abcdefghijklmnopqrstu\n日本語x",
+      highlightLines: (lines) => lines.map((line) => `\x1b[32m${line}\x1b[0m`),
+    });
+    try {
+      await flush(vt.term);
+      const base = vt.term.buffer.active.baseY;
+      expect(screenLine(vt.term, base)).toBe("opqrstu");
+      expect(screenLine(vt.term, base + 1)).toBe("| 日本語");
+      expect(screenLine(vt.term, base + 2)).toBe("x");
+      expect(
+        vt.term.buffer.active
+          .getLine(base + 2)
+          ?.getCell(0)
+          ?.getFgColor(),
+      ).toBe(2);
+      input.send(KEY.LEFT);
+      await flush(vt.term);
+      expect(cursorPos(vt.term)).toEqual({ x: 7, y: 1 });
+      input.send("Z");
+      await flush(vt.term);
+      expect(screenLine(vt.term, base + 2)).toBe("Zx");
+      expect(cursorPos(vt.term)).toEqual({ x: 1, y: 2 });
+      expect(vt.term.buffer.active.baseY).toBe(base);
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it("keeps a tall viewport stable during paste and history replacement", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(20, 4);
+    Object.assign(vt.stream, { rows: 4 });
+    const highlightLines = vi.fn((lines: readonly string[]) => lines);
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "one\ntwo\nthree\nfour\nfive\nsix",
+      history: ["short"],
+      highlightLines,
+    });
+    try {
+      await flush(vt.term);
+      const base = vt.term.buffer.active.baseY;
+      highlightLines.mockClear();
+      input.send("\x1b[200~\nseven\neight");
+      expect(highlightLines).not.toHaveBeenCalled();
+      input.send("\x1b[201~");
+      await flush(vt.term);
+      expect(highlightLines).toHaveBeenCalledTimes(1);
+      expect(screenLine(vt.term, base + 3)).toBe("eight");
+      expect(vt.term.buffer.active.baseY).toBe(base);
+      input.send("\x1b[5~");
+      await flush(vt.term);
+      expect(screenLine(vt.term, base)).toBe("short");
+      expect(screenLine(vt.term, base + 3)).toBe("");
+      expect(vt.term.buffer.active.baseY).toBe(base);
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it.each([4, 10])(
+    "reflows document viewports after resizing from %i rows",
+    async (initialRows) => {
+      vt.term.dispose();
+      vt = createVirtualTerminal(20, initialRows);
+      const output = Object.assign(new EventEmitter(), {
+        rows: initialRows,
+        columns: 20,
+        write(text: string) {
+          return vt.stream.write(text);
+        },
+      });
+      const promise = readMultiline("", {
+        input,
+        output: output as unknown as NodeJS.WritableStream,
+        prefix: "",
+        linePrefix: "",
+        helpFooter: false,
+        initialValue: "one\ntwo\nthree\nfour\nfive\nsix",
+        highlightLines: (lines) => lines,
+      });
+      try {
+        await flush(vt.term);
+        vt.term.resize(10, 3);
+        output.columns = 10;
+        output.rows = 3;
+        output.emit("resize");
+        await flush(vt.term);
+        const base = vt.term.buffer.active.baseY;
+        expect(screenLine(vt.term, base)).toBe("four");
+        expect(screenLine(vt.term, base + 2)).toBe("six");
+        expect(vt.term.buffer.active.baseY).toBe(base);
+        expect(cursorPos(vt.term)).toEqual({ x: 3, y: 2 });
+        vt.term.resize(20, 6);
+        output.columns = 20;
+        output.rows = 6;
+        const grownBase = vt.term.buffer.active.baseY;
+        output.emit("resize");
+        await flush(vt.term);
+        expect(screenLine(vt.term, grownBase)).toBe("one");
+        expect(screenLine(vt.term, grownBase + 5)).toBe("six");
+        expect(vt.term.buffer.active.baseY).toBe(grownBase);
+      } finally {
+        input.send(KEY.CTRL_C);
+        await promise;
+      }
+    },
+  );
+
+  it("uses offscreen context when coloring visible viewport rows", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(20, 4);
+    Object.assign(vt.stream, { rows: 4 });
+    const highlightLines = vi.fn((lines: readonly string[]) =>
+      lines.map((line) => (lines[0] === "/*" ? `\x1b[31m${line}\x1b[0m` : line)),
+    );
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "/*\none\ntwo\nthree\nfour\nfive",
+      highlightLines,
+    });
+    try {
+      await flush(vt.term);
+      const base = vt.term.buffer.active.baseY;
+      expect(vt.term.buffer.active.getLine(base)?.getCell(0)?.getFgColor()).toBe(1);
+      highlightLines.mockClear();
+      input.send("!");
+      await flush(vt.term);
+      expect(highlightLines).toHaveBeenCalledTimes(1);
+      expect(highlightLines.mock.calls[0][0]).toEqual([
+        "/*",
+        "one",
+        "two",
+        "three",
+        "four",
+        "five!",
+      ]);
+      highlightLines.mockClear();
+      input.send(KEY.LEFT);
+      input.send(KEY.RIGHT);
+      input.send(KEY.UP);
+      input.send(KEY.DOWN);
+      input.send(KEY.CMD_UP);
+      await flush(vt.term);
+      expect(highlightLines).not.toHaveBeenCalled();
+      input.send(KEY.DELETE);
+      input.send(KEY.CMD_DOWN);
+      await flush(vt.term);
+      expect(vt.term.buffer.active.getLine(base)?.getCell(0)?.isFgDefault()).toBe(true);
+      expect(vt.term.buffer.active.baseY).toBe(base);
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it("bounds edit output by viewport size for a large document", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(20, 4);
+    const chunks: string[] = [];
+    const output = {
+      columns: 20,
+      rows: 4,
+      write(text: string) {
+        chunks.push(text);
+        return vt.stream.write(text);
+      },
+    } as NodeJS.WritableStream;
+    const promise = readMultiline("", {
+      input,
+      output,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: Array.from({ length: 400 }, (_, n) => `line${n}`).join("\n"),
+      highlightLines: (lines) => lines,
+    });
+    try {
+      await flush(vt.term);
+      const base = vt.term.buffer.active.baseY;
+      chunks.length = 0;
+      input.send("!");
+      await flush(vt.term);
+      expect(chunks.join("").length).toBeLessThan(500);
+      expect(screenLine(vt.term, base + 3)).toBe("line399!");
+      expect(vt.term.buffer.active.baseY).toBe(base);
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
   // New layout: prompt header on line 0 (prefix + prompt), input lines below with linePrefix
 
   it("displays prefix header and typed text", async () => {

@@ -51,6 +51,8 @@
     "@changesets/cli": "^3.0.3",
     "@clack/prompts": "^1.8.1",
     "@inquirer/prompts": "^8.7.3",
+    "@twinkleplop/graphql": "0.2.1",
+    "@twinkleplop/sql": "0.1.7",
     "@types/node": "^25.9.9",
     "@xterm/headless": "^6.0.0",
     "graphql": "^17.0.2",

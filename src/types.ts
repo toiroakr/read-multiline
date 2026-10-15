@@ -145,6 +145,8 @@ export interface ReadMultilineOptions {
    */
   highlight?: (line: string, lineIndex: number) => string;
 
+  highlightLines?: (lines: readonly string[]) => readonly string[];
+
   /**
    * Called after each edit operation. Receives the current editor content,
    * cursor position, and what edit just occurred. Return a new state to
@@ -350,6 +352,15 @@ export interface EditorState {
 
   // Highlight & transform
   highlight: ((line: string, lineIndex: number) => string) | undefined;
+  highlightLines: ((lines: readonly string[]) => readonly string[]) | undefined;
+  highlightedLines: readonly string[] | null;
+  viewport: {
+    top: number;
+    main: Pick<
+      EditorState,
+      "lines" | "row" | "col" | "promptHeader" | "promptHeaderHeight" | "linePrefixWidth"
+    >;
+  } | null;
   transform:
     | ((state: TransformState, event: TransformEvent) => TransformState | undefined)
     | undefined;

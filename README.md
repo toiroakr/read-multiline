@@ -70,6 +70,42 @@ const askClack = createPrompt(presets.clack);
 const [input] = await askClack("Enter some text:");
 ```
 
+### Syntax highlighting with Twinkleplop
+
+The optional [Twinkleplop example](examples/twinkleplop-editor.ts) supports SQL and
+GraphQL using the `highlightLines` callback. The core package still has zero
+runtime dependencies. From a checkout of this repository:
+
+```bash
+pnpm install
+npx tsx examples/twinkleplop-editor.ts sql
+npx tsx examples/twinkleplop-editor.ts graphql
+```
+
+To use the adapter in your own application, install `@twinkleplop/sql` or
+`@twinkleplop/graphql`, copy [the ANSI adapter](examples/twinkleplop-highlight.ts),
+and pass a tokenizer to it:
+
+```typescript
+import { tokenize } from "@twinkleplop/sql";
+import { readMultiline } from "@toiroakr/read-multiline";
+import { createTwinkleplopHighlight } from "./twinkleplop-highlight.js";
+
+const highlight = createTwinkleplopHighlight(tokenize());
+const [value, error] = await readMultiline("SQL:", {
+  highlightLines: (lines) => highlight(lines.join("\n")).split("\n"),
+});
+```
+
+The adapter preserves the original text, including whitespace and Unicode, and
+accepts incomplete input while typing. It tokenizes the whole buffer, including
+SQL block comments, GraphQL block strings, and context across line boundaries.
+Each colored line resets its ANSI style so prefixes and footers keep their own
+colors. This example provides highlighting without auto-editing or validation.
+
+See [benchmark results and methodology](examples/highlighting-benchmark.md) for
+startup time, ANSI rendering time, memory usage, and the command to reproduce them.
+
 ## API
 
 ### `readMultiline(prompt, options?): Promise<ReadMultilineResult>`
@@ -104,6 +140,35 @@ Returns a `ReadMultilineResult` tuple:
 | `footer`                 | `string`                                         | `undefined`      | Fixed footer text below the editor                                                                      |
 | `helpFooter`             | `boolean \| HelpFooterDisplayOptions`            | `true`           | Auto-generated key bindings help footer                                                                 |
 | `inlinePrompt`           | `boolean`                                        | `false`          | Render the prompt header and the first input line on the same line. See [Inline prompt](#inline-prompt) |
+
+### Syntax highlighting callbacks
+
+`highlight(line, lineIndex)` returns one line with ANSI styling. It is suitable
+for line-local highlighting and keeps the existing rendering behavior.
+
+`highlightLines(lines)` receives a read-only snapshot of all logical input lines
+and returns one ANSI-styled string per input line. Return the same number of lines,
+preserve their text and whitespace, and reset ANSI styling within each line.
+This callback takes precedence over `highlight` and `theme.input`.
+
+With `highlightLines`, a content edit redraws the complete buffer so changes to a
+comment, string delimiter or later context can recolor other lines. The callback
+runs once per redraw, and its result is shared by every line in that redraw.
+Bracketed paste is highlighted after the paste completes. Initial content,
+history, undo/redo, terminal resize and preserved answers use the same callback;
+`theme.answer`/`theme.cancelAnswer` still take precedence for final answers.
+
+When the output stream supplies `rows` and `columns`, input taller than the terminal
+uses a viewport in the terminal’s alternate screen, preserving earlier terminal output.
+The main screen is restored when the prompt finishes. Cursor movement reveals offscreen lines, footers remain visible,
+and edits repaint visible rows without appending duplicate input to scrollback.
+The viewport also handles wrapping, history, undo/redo, and terminal resize. Once
+entered, it remains active until the prompt finishes. Custom output streams can
+provide these dimensions to enable the same behavior.
+
+Full-document highlighting processes the entire buffer for each edit. Use the
+line callback when you do not need cross-line context or want to avoid this cost
+for large buffers.
 
 ### Layout
 

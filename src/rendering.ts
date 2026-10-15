@@ -7,6 +7,7 @@ import {
   resolveStateful,
 } from "./style.js";
 import type { EditorState, Snapshot } from "./types.js";
+import { buildViewport } from "./viewport.js";
 
 /** Get the prompt header width for inline mode (0 if not inline) */
 function getPromptHeaderWidth(state: EditorState): number {
@@ -16,11 +17,63 @@ function getPromptHeaderWidth(state: EditorState): number {
 /** Return the highlighted (or styled) text for a given line */
 export function renderLine(state: EditorState, rowIndex: number): string {
   const line = state.lines[rowIndex];
+  if (state.highlightLines && !state.isPasting) {
+    state.highlightedLines ??= state.highlightLines([...state.lines]);
+    return state.highlightedLines[rowIndex] ?? line;
+  }
   return state.highlight ? state.highlight(line, rowIndex) : styledInput(state, line);
+}
+
+type MainScreen = NonNullable<EditorState["viewport"]>["main"];
+
+function captureMainScreen(state: EditorState): MainScreen {
+  return {
+    lines: [...state.lines],
+    row: state.row,
+    col: state.col,
+    promptHeader: state.promptHeader,
+    promptHeaderHeight: state.promptHeaderHeight,
+    linePrefixWidth: state.linePrefixWidth,
+  };
+}
+
+export function renderViewport(
+  state: EditorState,
+  {
+    allowEnter = false,
+    reuseHighlight = false,
+    main,
+  }: {
+    allowEnter?: boolean;
+    reuseHighlight?: boolean;
+    main?: MainScreen;
+  } = {},
+): boolean {
+  const cached = state.highlightedLines;
+  if (!reuseHighlight) state.highlightedLines = null;
+  const frame = buildViewport(state, (row) => renderLine(state, row), allowEnter);
+  if (!frame) {
+    state.highlightedLines = cached;
+    return false;
+  }
+  const savedMain = state.viewport?.main ?? main ?? captureMainScreen(state);
+  if (!state.viewport) w(state, "\x1b[?1049h");
+  state.viewport = { top: frame.top, main: savedMain };
+  w(state, "\x1b[?25l" + frame.output + "\x1b[?25h");
+  return true;
+}
+
+export function leaveViewport(state: EditorState): number | null {
+  if (!state.viewport) return null;
+  const main = state.viewport.main;
+  w(state, "\x1b[?1049l");
+  state.viewport = null;
+  return cursorVisualRow({ ...state, ...main }, main.row, main.col);
 }
 
 /** Write text to the output stream (or buffer if batching) */
 export function w(state: EditorState, text: string): void {
+  if (state.isPasting && state.viewport) return;
   if (state.buffering) {
     state.writeBuffer += text;
   } else {
@@ -30,6 +83,7 @@ export function w(state: EditorState, text: string): void {
 
 /** Begin buffering output writes for flicker-free batch rendering */
 export function beginBatch(state: EditorState): void {
+  state.highlightedLines = null;
   state.buffering = true;
   state.writeBuffer = "";
 }
@@ -161,6 +215,12 @@ export function styledInput(state: EditorState, text: string): string {
 
 /** Move terminal cursor from current position to (newRow, newCol) */
 export function moveTo(state: EditorState, newRow: number, newCol: number): void {
+  if (state.viewport) {
+    state.row = newRow;
+    state.col = newCol;
+    renderViewport(state, { reuseHighlight: true });
+    return;
+  }
   const currentVisualRow = cursorVisualRow(state, state.row, state.col);
   const newVisualRow = cursorVisualRow(state, newRow, newCol);
   const dr = newVisualRow - currentVisualRow;
@@ -173,6 +233,10 @@ export function moveTo(state: EditorState, newRow: number, newCol: number): void
 
 /** Draw status line and footer below the editor content, then return cursor to position */
 export function drawBelowEditor(state: EditorState): void {
+  if (state.viewport) {
+    renderViewport(state);
+    return;
+  }
   if (!state.statusText && !state.footerText) return;
 
   const currentVisualRow = cursorVisualRow(state, state.row, state.col);
@@ -212,10 +276,12 @@ export function drawBelowEditor(state: EditorState): void {
   const upCount = endVisualRow - currentVisualRow + linesBelow;
   if (upCount > 0) w(state, `\x1b[${upCount}A`);
   w(state, `\x1b[${tCol(state, state.row, state.col)}G`);
+  renderViewport(state, { allowEnter: true, reuseHighlight: true });
 }
 
 /** Clear everything below the editor (status + footer) and return cursor to position */
 function clearBelowAndReturn(state: EditorState): void {
+  if (state.viewport) return;
   const currentVisualRow = cursorVisualRow(state, state.row, state.col);
   const endVisualRow = lastVisualRow(state);
   const dr = endVisualRow - currentVisualRow;
@@ -253,6 +319,12 @@ export function setFooter(state: EditorState, text: string): void {
 
 /** Clear all content below the editor (status and footer) for cleanup */
 export function clearBelowEditor(state: EditorState): void {
+  if (state.viewport) {
+    state.statusText = "";
+    state.statusColor = "";
+    state.footerText = "";
+    return;
+  }
   if (!state.statusText && !state.footerText) return;
   clearBelowAndReturn(state);
   state.statusText = "";
@@ -286,14 +358,12 @@ export function setStatusWithVisualState(
 ): void {
   const visualChanged = state.visualState !== visualState;
   if (visualChanged) {
-    // Capture old header height before updating, for correct cursor rewind
-    const oldHeaderHeight = state.promptHeaderHeight;
-    setVisualState(state, visualState);
-    // Full redraw since prefix/linePrefix changed
+    const main = captureMainScreen(state);
     if (state.statusText || state.footerText) clearBelowAndReturn(state);
+    setVisualState(state, visualState);
     state.statusText = text;
     state.statusColor = color;
-    fullRedraw(state, oldHeaderHeight);
+    fullRedraw(state, main);
   } else {
     setStatus(state, text, color);
   }
@@ -314,19 +384,25 @@ export function redrawFrom(
   targetCol: number,
   options?: { previousCursorVisualRow?: number },
 ): void {
+  if (state.viewport && !state.isPasting) {
+    state.row = targetRow;
+    state.col = targetCol;
+    renderViewport(state);
+    return;
+  }
+  if (state.highlightLines && !state.isPasting) fromRow = 0;
   beginBatch(state);
   const currentVisualRow =
     options?.previousCursorVisualRow ?? cursorVisualRow(state, state.row, state.col);
-  const fromVisualRow = firstVisualRow(state, fromRow);
+  const redrawHeader = !!state.highlightLines && state.inlinePrompt && fromRow === 0;
+  const fromVisualRow = redrawHeader ? 0 : cursorVisualRow(state, fromRow, 0);
   const dr = fromVisualRow - currentVisualRow;
   if (dr < 0) w(state, `\x1b[${-dr}A`);
   else if (dr > 0) w(state, `\x1b[${dr}B`);
-  w(state, `\x1b[${tCol(state, fromRow, 0)}G`);
+  w(state, `\x1b[${redrawHeader ? 1 : tCol(state, fromRow, 0)}G`);
 
   w(state, "\x1b[J");
-  // Note: In inline prompt mode, tCol(state, 0, 0) already positions the cursor
-  // *after* the existing prompt header, so the header on the terminal is preserved
-  // and we must not re-emit it here (doing so would duplicate the header).
+  if (redrawHeader) w(state, state.promptHeader);
   w(state, renderLine(state, fromRow));
   for (let i = fromRow + 1; i < state.lines.length; i++) {
     w(state, "\n" + state.styledLinePrefix + renderLine(state, i));
@@ -343,21 +419,14 @@ export function redrawFrom(
 
   drawBelowEditor(state);
   flushBatch(state);
+  if (!state.viewport) renderViewport(state, { allowEnter: true, reuseHighlight: true });
 }
 
-/**
- * Full redraw: rewind cursor, redraw prompt header and all input lines, restore cursor.
- * @param rewindHeaderHeight - header height to use for cursor rewind (may differ from current
- *   state.promptHeaderHeight when the visual state has just changed)
- */
-function fullRedraw(state: EditorState, rewindHeaderHeight?: number): void {
+function fullRedraw(state: EditorState, main?: MainScreen): void {
+  if (renderViewport(state, { allowEnter: true, main })) return;
   beginBatch(state);
-  const upCount = cursorVisualRow(
-    state,
-    state.row,
-    state.col,
-    rewindHeaderHeight ?? state.promptHeaderHeight,
-  );
+  const origin = main ? { ...state, ...main } : state;
+  const upCount = cursorVisualRow(origin, origin.row, origin.col);
   if (upCount > 0) w(state, `\x1b[${upCount}A`);
   w(state, "\r");
 
@@ -404,6 +473,13 @@ export function clearScreen(state: EditorState): void {
 
 /** Restore editor state from a snapshot and redraw */
 export function restoreSnapshot(state: EditorState, snap: Snapshot): void {
+  if (state.viewport) {
+    state.lines = [...snap.lines];
+    state.row = snap.row;
+    state.col = snap.col;
+    renderViewport(state);
+    return;
+  }
   beginBatch(state);
   const currentVisualRow = cursorVisualRow(state, state.row, state.col);
   const inputStartVisualRow = state.inlinePrompt ? 0 : state.promptHeaderHeight;
@@ -431,6 +507,7 @@ export function restoreSnapshot(state: EditorState, snap: Snapshot): void {
   state.col = snap.col;
   drawBelowEditor(state);
   flushBatch(state);
+  if (!state.viewport) renderViewport(state, { allowEnter: true, reuseHighlight: true });
 }
 
 /** Redraw current line after deleting characters of the given display width at cursor */

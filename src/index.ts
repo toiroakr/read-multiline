@@ -8,7 +8,9 @@ import {
   clearBelowEditor,
   clearScreen,
   cursorVisualRow,
+  leaveViewport,
   renderLine,
+  renderViewport,
   setFooter,
   setStatusWithVisualState,
   tCol,
@@ -150,6 +152,7 @@ function readFromTTY(
       clearAfterSubmit = true,
       disabledKeys = [],
       highlight,
+      highlightLines,
       transform,
       footer,
       helpFooter = true,
@@ -231,6 +234,9 @@ function readFromTTY(
       preferNewlineOnEnter,
       disabledKeys: new Set(disabledKeys),
       highlight,
+      highlightLines,
+      highlightedLines: null,
+      viewport: null,
       transform,
       inlinePrompt,
       keyMap: {},
@@ -283,7 +289,7 @@ function readFromTTY(
 
     /** Erase all editor content (prompt header + input lines + status + footer) from the terminal */
     function clearEditorArea() {
-      const upCount = cursorVisualRow(state, state.row, state.col);
+      const upCount = leaveViewport(state) ?? cursorVisualRow(state, state.row, state.col);
       if (upCount > 0) w(state, `\x1b[${upCount}A`);
       w(state, "\r\x1b[J");
       state.statusText = "";
@@ -412,6 +418,7 @@ function readFromTTY(
       w(state, `\x1b[${tCol(state, state.row, state.col)}G`);
     }
 
+    renderViewport(state, { allowEnter: true, reuseHighlight: true });
     input.setRawMode?.(true);
     input.resume();
     w(state, "\x1b[>1u"); // Enable kitty keyboard protocol
@@ -469,9 +476,10 @@ function renderStateChange(
   renderState: "submitted" | "cancelled",
   mode: "content" | "preserve" | "ellipsis" | number = "preserve",
 ): void {
+  state.highlightedLines = null;
   // Move to top of editor (input lines + prompt header)
   // In inline mode, header is on same line as input, so use 0 for height
-  const upCount = cursorVisualRow(state, state.row, state.col);
+  const upCount = leaveViewport(state) ?? cursorVisualRow(state, state.row, state.col);
   if (upCount > 0) w(state, `\x1b[${upCount}A`);
   w(state, "\r\x1b[J");
 

@@ -175,6 +175,12 @@ importers:
       '@inquirer/prompts':
         specifier: ^8.7.3
         version: 8.7.3(@types/node@25.9.9)
+      '@twinkleplop/graphql':
+        specifier: 0.2.1
+        version: 0.2.1
+      '@twinkleplop/sql':
+        specifier: 0.1.7
+        version: 0.1.7
       '@types/node':
         specifier: ^25.9.9
         version: 25.9.9
@@ -1198,6 +1204,15 @@ packages:
 
   '@shikijs/vscode-textmate@10.0.2':
     resolution: {integrity: sha512-83yeghZ2xxin3Nj8z1NMd/NCuca+gsYXswywDy5bHvwlWL8tpTQmzGeUuHd9FC3E/SBEMvzJRwWEOz5gGes9Qg==}
+
+  '@twinkleplop/core@0.3.1':
+    resolution: {integrity: sha512-fMbce7NcJlVROsyI34tz3DCWkAWRWLRlBNCbgwz36mm6yoEO09eyafi8JRN5HJGQIzMr0qjXQ3t3asc7MFSh8Q==}
+
+  '@twinkleplop/graphql@0.2.1':
+    resolution: {integrity: sha512-hZeiawkMElrRICfncl5X4oW6lO+YXgwqIRMwvSHNzH/J7cpi6gHrZnwnDT5Ave4xJDTaPGj+93wB4jzW3OjTGg==}
+
+  '@twinkleplop/sql@0.1.7':
+    resolution: {integrity: sha512-H0KA5WVohc6IwEQce1S0CZQrt0eXnlkuuYlHxFa8GCj/q82mFg3YvtiPASUSmOKERWN52/yzdT6K0opvlVIT/A==}
 
   '@tybys/wasm-util@0.10.4':
     resolution: {integrity: sha512-W3c4gRigFS0T/Ma4qIYF3GDAc5AQdHb1yL5znJT1Zv1YaD9Kitx656wBjvr19qbiosmZT8lWDM5BEMynUqX65A==}
@@ -3125,6 +3140,16 @@ snapshots:
       '@types/hast': 3.0.5
 
   '@shikijs/vscode-textmate@10.0.2': {}
+
+  '@twinkleplop/core@0.3.1': {}
+
+  '@twinkleplop/graphql@0.2.1':
+    dependencies:
+      '@twinkleplop/core': 0.3.1
+
+  '@twinkleplop/sql@0.1.7':
+    dependencies:
+      '@twinkleplop/core': 0.3.1
 
   '@tybys/wasm-util@0.10.4':
     dependencies:
