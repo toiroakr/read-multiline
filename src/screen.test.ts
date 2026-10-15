@@ -535,6 +535,178 @@ describe("Screen rendering (virtual terminal)", () => {
     expect(screenLine(vt.term, 0)).toBe("earlier output");
   });
 
+  it.each([KEY.CTRL_C, KEY.ENTER])(
+    "keeps tall initial input off the normal screen until finishing with %j",
+    async (finish) => {
+      vt.term.dispose();
+      vt = createVirtualTerminal(20, 4);
+      Object.assign(vt.stream, { rows: 4 });
+      vt.stream.write("earlier output\r\n");
+      const promise = readMultiline("", {
+        input,
+        output: vt.stream,
+        prefix: "",
+        linePrefix: "",
+        helpFooter: false,
+        clearAfterSubmit: false,
+        initialValue: "one\ntwo\nthree\nfour\nfive\nsix",
+        highlightLines: (lines) => lines,
+      });
+      await flush(vt.term);
+      expect(vt.term.buffer.normal.baseY).toBe(0);
+      expect(vt.term.buffer.normal.getLine(1)?.translateToString(true)).toBe("");
+      input.send(finish);
+      await promise;
+      await flush(vt.term);
+      expect(screenLine(vt.term, 0)).toBe("earlier output");
+      expect(screenLine(vt.term, 1)).toBe(finish === KEY.ENTER ? "one" : "");
+      const normalLines = Array.from({ length: vt.term.buffer.normal.length }, (_, row) =>
+        screenLine(vt.term, row),
+      );
+      expect(normalLines.filter((line) => line === "one")).toHaveLength(
+        finish === KEY.ENTER ? 1 : 0,
+      );
+    },
+  );
+
+  it.each(["short", "one\ntwo\nthree\nfour\nfive"])(
+    "leaves terminal modes untouched when initial highlighting throws for %j",
+    async (initialValue) => {
+      vt.term.dispose();
+      vt = createVirtualTerminal(20, 4);
+      const chunks: string[] = [];
+      const output = {
+        rows: 4,
+        columns: 20,
+        write(text: string) {
+          chunks.push(text);
+          return vt.stream.write(text);
+        },
+      } as NodeJS.WritableStream;
+      const promise = readMultiline("", {
+        input,
+        output,
+        prefix: "",
+        linePrefix: "",
+        helpFooter: false,
+        initialValue,
+        highlightLines: () => {
+          throw new Error("highlight failed");
+        },
+      });
+      await expect(promise).rejects.toThrow("highlight failed");
+      expect(input.setRawMode).not.toHaveBeenCalledWith(true);
+      expect(input.resume).not.toHaveBeenCalled();
+      expect(chunks.join("")).not.toContain("\x1b[>1u");
+      await flush(vt.term);
+      expect(vt.term.buffer.active.type).toBe("normal");
+    },
+  );
+
+  it.each([true, false])(
+    "balances keyboard-mode stacks across viewport entry (initial: %s)",
+    async (initial) => {
+      vt.term.dispose();
+      vt = createVirtualTerminal(20, 4);
+      const stacks = { normal: ["caller"], alternate: [] as string[] };
+      let screen: keyof typeof stacks = "normal";
+      const output = {
+        rows: 4,
+        columns: 20,
+        write(text: string) {
+          for (const control of text.match(/\x1b\[\?1049[hl]|\x1b\[>1u|\x1b\[<u/g) ?? []) {
+            if (control === "\x1b[?1049h") screen = "alternate";
+            else if (control === "\x1b[?1049l") screen = "normal";
+            else if (control === "\x1b[>1u") stacks[screen].push("editor");
+            else stacks[screen].pop();
+          }
+          return vt.stream.write(text);
+        },
+      } as NodeJS.WritableStream;
+      const promise = readMultiline("", {
+        input,
+        output,
+        prefix: "",
+        linePrefix: "",
+        helpFooter: false,
+        initialValue: initial ? "one\ntwo\nthree\nfour\nfive" : "one\ntwo\nthree",
+        highlightLines: (lines) => lines,
+      });
+      try {
+        if (!initial) {
+          input.send(KEY.SHIFT_ENTER);
+          input.send(KEY.SHIFT_ENTER);
+        }
+        expect(stacks.alternate).toEqual(["editor"]);
+        expect(stacks.normal).toEqual(["caller"]);
+      } finally {
+        input.send(KEY.CTRL_C);
+        await promise;
+      }
+      expect(stacks.alternate).toEqual([]);
+      expect(stacks.normal).toEqual(["caller"]);
+    },
+  );
+
+  it("wraps OSC hyperlinks without counting or breaking their URLs", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(10, 4);
+    Object.assign(vt.stream, { rows: 4 });
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "a".repeat(60) + "\nend",
+      highlightLines: (lines) =>
+        lines.map((line) => `\x1b]8;;https://example.com/path\x1b\\${line}\x1b]8;;\x1b\\`),
+    });
+    try {
+      await flush(vt.term);
+      expect(screenLine(vt.term, 0)).toBe("aaaaaaaaaa");
+      expect(screenLine(vt.term, 3)).toBe("end");
+      expect(cursorPos(vt.term)).toEqual({ x: 3, y: 3 });
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it.each(["😀".repeat(8), "a\u0301".repeat(16)])(
+    "wraps terminal cells without overwriting a following line: %s",
+    async (line) => {
+      vt.term.dispose();
+      vt = createVirtualTerminal(8, 3);
+      vt.term.unicode.register({
+        version: "terminal-cell-test",
+        wcwidth: (code) => (code === 0x1f600 ? 2 : code === 0x301 ? 0 : 1),
+        charProperties: (code, preceding) =>
+          code === 0x301 ? preceding | 1 : code === 0x1f600 ? 4 : 2,
+      });
+      vt.term.unicode.activeVersion = "terminal-cell-test";
+      Object.assign(vt.stream, { rows: 3 });
+      const promise = readMultiline("", {
+        input,
+        output: vt.stream,
+        prefix: "",
+        linePrefix: "",
+        helpFooter: false,
+        initialValue: line + "\nnext\nlast",
+        highlightLines: (lines) => lines,
+      });
+      try {
+        await flush(vt.term);
+        expect(screenLine(vt.term, 0)).toBe(line.slice(line.length / 2));
+        expect(screenLine(vt.term, 1)).toBe("next");
+        expect(screenLine(vt.term, 2)).toBe("last");
+      } finally {
+        input.send(KEY.CTRL_C);
+        await promise;
+      }
+    },
+  );
+
   it("does not duplicate tall input in scrollback when editing the last line", async () => {
     vt.term.dispose();
     vt = createVirtualTerminal(20, 4);
