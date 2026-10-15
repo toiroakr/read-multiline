@@ -1,6 +1,6 @@
 {
   "environment": {
-    "date": "2026-10-15T13:08:10.656Z",
+    "date": "2026-10-15T13:39:25.873Z",
     "node": "v24.13.0",
     "os": "darwin 25.6.0 arm64",
     "cpu": "Apple M3",
@@ -11,12 +11,20 @@
       "sql-highlight": "6.1.0"
     }
   },
-  "method": "5 fresh processes per provider/language, rotating order; 100 warmup iterations and >=100ms per scenario; no terminal I/O; startup excludes Node startup and uses warm filesystem cache",
+  "method": "5 fresh processes per provider/language, rotating order; >=100ms warmup and >=100ms measured per scenario; no terminal I/O; startup excludes Node startup and uses warm filesystem cache",
   "scenarios": {
     "sql": {
       "line": {
         "lines": 1,
         "characters": 51
+      },
+      "document100": {
+        "lines": 1,
+        "characters": 5389
+      },
+      "multiline": {
+        "lines": 1,
+        "characters": 23
       },
       "redraw100": {
         "lines": 100,
@@ -31,6 +39,14 @@
       "line": {
         "lines": 1,
         "characters": 47
+      },
+      "document100": {
+        "lines": 1,
+        "characters": 5369
+      },
+      "multiline": {
+        "lines": 1,
+        "characters": 36
       },
       "redraw100": {
         "lines": 100,
@@ -47,68 +63,128 @@
       "provider": "twinkleplop",
       "language": "sql",
       "median": {
-        "readyMs": 41.960916999999995,
-        "rssMiB": 78.171875,
+        "readyMs": 77.895625,
+        "readyCpuMs": 24.23,
+        "rssMiB": 74.859375,
+        "cpuMicroseconds": {
+          "line": 5.777868852459016,
+          "document100": 339.62857142857143,
+          "multiline": 3.1883291770573567,
+          "redraw100": 446.4769230769231,
+          "typing": 127.62978723404255
+        },
         "microseconds": {
-          "line": 3.5545620113717136,
-          "redraw100": 531.9752210526318,
-          "typing": 107.80878064516133
+          "line": 86.46946721311475,
+          "document100": 3452.6154714285717,
+          "multiline": 4.987774314214462,
+          "redraw100": 981.4068181818171,
+          "typing": 443.7751782608678
         }
       },
       "samples": [
         {
-          "setupMs": 55.227959,
-          "firstRenderMs": 4.543125000000003,
-          "readyMs": 59.771084,
-          "rssMiB": 77.90625,
+          "setupMs": 167.45058299999994,
+          "firstRenderMs": 4.2075419999999895,
+          "readyMs": 171.65812499999993,
+          "readyCpuMs": 24.515,
+          "rssMiB": 67.25,
           "timings": {
-            "line": 3.7433429475251216,
-            "redraw100": 664.4102941176474,
-            "typing": 192.40624999999997
+            "line": 87.9047566666666,
+            "document100": 15615.954099999999,
+            "multiline": 26.820230263157924,
+            "redraw100": 9610.401024999994,
+            "typing": 443.7751782608678
+          },
+          "cpuTimings": {
+            "line": 22.814166666666665,
+            "document100": 365.8,
+            "multiline": 3.5273684210526315,
+            "redraw100": 458.475,
+            "typing": 139.8
           }
         },
         {
-          "setupMs": 41.614458,
-          "firstRenderMs": 1.5678340000000048,
-          "readyMs": 43.182292000000004,
-          "rssMiB": 78.46875,
+          "setupMs": 83.211084,
+          "firstRenderMs": 4.422375000000017,
+          "readyMs": 87.63345900000002,
+          "readyCpuMs": 23.04,
+          "rssMiB": 74.859375,
           "timings": {
-            "line": 3.30703899537343,
-            "redraw100": 244.31138292682928,
-            "typing": 92.93522314814815
+            "line": 86.46946721311475,
+            "document100": 3452.6154714285717,
+            "multiline": 4.987774314214462,
+            "redraw100": 3538.8991799999985,
+            "typing": 2070.9524999999985
+          },
+          "cpuTimings": {
+            "line": 5.777868852459016,
+            "document100": 339.62857142857143,
+            "multiline": 3.1883291770573567,
+            "redraw100": 441.7,
+            "typing": 117.36
           }
         },
         {
-          "setupMs": 15.184666,
-          "firstRenderMs": 2.237334000000004,
-          "readyMs": 17.422000000000004,
-          "rssMiB": 77.984375,
+          "setupMs": 50.432334,
+          "firstRenderMs": 2.609458000000018,
+          "readyMs": 53.041792000000015,
+          "readyCpuMs": 22.963,
+          "rssMiB": 75.4375,
           "timings": {
-            "line": 2.9669101750222486,
-            "redraw100": 279.7756944444444,
-            "typing": 95.53211509433964
+            "line": 104.82651150442477,
+            "document100": 12879.791699999998,
+            "multiline": 3.7462240194247305,
+            "redraw100": 777.242307692308,
+            "typing": 216.23014255319165
+          },
+          "cpuTimings": {
+            "line": 9.45221238938053,
+            "document100": 444.5,
+            "multiline": 1.311804258498319,
+            "redraw100": 446.4769230769231,
+            "typing": 127.62978723404255
           }
         },
         {
-          "setupMs": 20.009583000000006,
-          "firstRenderMs": 1.294083999999998,
-          "readyMs": 21.303667000000004,
-          "rssMiB": 78.171875,
+          "setupMs": 66.59833300000003,
+          "firstRenderMs": 11.29729199999997,
+          "readyMs": 77.895625,
+          "readyCpuMs": 27.455,
+          "rssMiB": 74.703125,
           "timings": {
-            "line": 3.5545620113717136,
-            "redraw100": 1347.75,
-            "typing": 107.80878064516133
+            "line": 8.960730286738347,
+            "document100": 689.1038933333334,
+            "multiline": 30.518813414634156,
+            "redraw100": 981.4068181818171,
+            "typing": 291.96404857142886
+          },
+          "cpuTimings": {
+            "line": 4.077150537634409,
+            "document100": 299.85333333333335,
+            "multiline": 3.455182926829268,
+            "redraw100": 412.56363636363636,
+            "typing": 123.12
           }
         },
         {
-          "setupMs": 38.99312500000002,
-          "firstRenderMs": 2.9677919999999745,
-          "readyMs": 41.960916999999995,
-          "rssMiB": 80.078125,
+          "setupMs": 44.496375,
+          "firstRenderMs": 2.491250000000008,
+          "readyMs": 46.98762500000001,
+          "readyCpuMs": 24.23,
+          "rssMiB": 80.640625,
           "timings": {
-            "line": 8.25522464962902,
-            "redraw100": 531.9752210526318,
-            "typing": 146.2477652173914
+            "line": 15.37622682215744,
+            "document100": 420.17152916666635,
+            "multiline": 1.836199214037652,
+            "redraw100": 948.6299272727272,
+            "typing": 707.7333333333335
+          },
+          "cpuTimings": {
+            "line": 4.6849854227405245,
+            "document100": 267.12916666666666,
+            "multiline": 1.1943885944068726,
+            "redraw100": 453.9,
+            "typing": 145.54761904761904
           }
         }
       ]
@@ -117,68 +193,128 @@
       "provider": "shiki",
       "language": "sql",
       "median": {
-        "readyMs": 459.97375000000005,
-        "rssMiB": 102.90625,
+        "readyMs": 760.9946249999999,
+        "readyCpuMs": 254.766,
+        "rssMiB": 105.40625,
+        "cpuMicroseconds": {
+          "line": 615.8,
+          "document100": 30363.2,
+          "multiline": 75.41111111111111,
+          "redraw100": 26549.4,
+          "typing": 7749.2
+        },
         "microseconds": {
-          "line": 574.0738388888888,
-          "redraw100": 22739.999999999964,
-          "typing": 8030.614549999972
+          "line": 5675.258349999998,
+          "document100": 139507.02920000002,
+          "multiline": 358.04538571428566,
+          "redraw100": 81180.44170000002,
+          "typing": 20987.65000000003
         }
       },
       "samples": [
         {
-          "setupMs": 303.406791,
-          "firstRenderMs": 103.25633400000004,
-          "readyMs": 406.66312500000004,
-          "rssMiB": 102.90625,
+          "setupMs": 1534.87075,
+          "firstRenderMs": 462.064167,
+          "readyMs": 1996.934917,
+          "readyCpuMs": 254.766,
+          "rssMiB": 88.03125,
           "timings": {
-            "line": 547.8324578947369,
-            "redraw100": 36177.67090000007,
-            "typing": 8030.614549999972
+            "line": 27289.995799999997,
+            "document100": 295751.19999999995,
+            "multiline": 358.04538571428566,
+            "redraw100": 305294.78329999984,
+            "typing": 101767.3041
+          },
+          "cpuTimings": {
+            "line": 780.5,
+            "document100": 30363.2,
+            "multiline": 85.14642857142857,
+            "redraw100": 32745.4,
+            "typing": 9534.8
           }
         },
         {
-          "setupMs": 147.922333,
-          "firstRenderMs": 312.051417,
-          "readyMs": 459.97375000000005,
-          "rssMiB": 97.453125,
+          "setupMs": 408.28262499999994,
+          "firstRenderMs": 389.348834,
+          "readyMs": 797.631459,
+          "readyCpuMs": 260.169,
+          "rssMiB": 96.59375,
           "timings": {
-            "line": 238.24107142857136,
-            "redraw100": 20768.44580000002,
-            "typing": 6785.995850000018
+            "line": 5279.243750000001,
+            "document100": 139507.02920000002,
+            "multiline": 514.158124999999,
+            "redraw100": 81180.44170000002,
+            "typing": 20987.65000000003
+          },
+          "cpuTimings": {
+            "line": 508.8,
+            "document100": 31697.6,
+            "multiline": 116.295,
+            "redraw100": 26155.2,
+            "typing": 7344.8
           }
         },
         {
-          "setupMs": 540.3494169999999,
-          "firstRenderMs": 44.411291000000006,
-          "readyMs": 584.760708,
-          "rssMiB": 108.78125,
+          "setupMs": 565.150708,
+          "firstRenderMs": 195.84391699999992,
+          "readyMs": 760.9946249999999,
+          "readyCpuMs": 238.052,
+          "rssMiB": 105.40625,
           "timings": {
-            "line": 3958.743066666667,
-            "redraw100": 21355.89170000003,
-            "typing": 8137.71670000001
+            "line": 11648.27499999999,
+            "document100": 229657.70410000003,
+            "multiline": 1457.805555555559,
+            "redraw100": 154972.80420000007,
+            "typing": 45074.17500000001
+          },
+          "cpuTimings": {
+            "line": 639.8,
+            "document100": 31827.5,
+            "multiline": 75.41111111111111,
+            "redraw100": 31916.3,
+            "typing": 8789.6
           }
         },
         {
-          "setupMs": 201.40166600000003,
-          "firstRenderMs": 41.883084,
-          "readyMs": 243.28475000000003,
-          "rssMiB": 123.140625,
+          "setupMs": 420.560708,
+          "firstRenderMs": 96.43129199999998,
+          "readyMs": 516.992,
+          "readyCpuMs": 255.141,
+          "rssMiB": 113.828125,
           "timings": {
-            "line": 574.0738388888888,
-            "redraw100": 28862.824999999975,
-            "typing": 6950.862499999994
+            "line": 739.6273857142855,
+            "document100": 43705.866600000016,
+            "multiline": 77.10156999999998,
+            "redraw100": 30649.945799999998,
+            "typing": 11652.579200000037
+          },
+          "cpuTimings": {
+            "line": 415.1928571428571,
+            "document100": 29370,
+            "multiline": 73.08769230769231,
+            "redraw100": 26549.4,
+            "typing": 7749.2
           }
         },
         {
-          "setupMs": 1293.305708,
-          "firstRenderMs": 473.80887499999994,
-          "readyMs": 1767.114583,
-          "rssMiB": 95.90625,
+          "setupMs": 183.734917,
+          "firstRenderMs": 100.700041,
+          "readyMs": 284.434958,
+          "readyCpuMs": 204.149,
+          "rssMiB": 106.984375,
           "timings": {
-            "line": 1457.0047714285724,
-            "redraw100": 22739.999999999964,
-            "typing": 9127.679199999966
+            "line": 5675.258349999998,
+            "document100": 48296.67499999998,
+            "multiline": 92.74502314814804,
+            "redraw100": 53234.96250000001,
+            "typing": 17244.0709
+          },
+          "cpuTimings": {
+            "line": 615.8,
+            "document100": 29406.1,
+            "multiline": 71.87962962962963,
+            "redraw100": 26431.1,
+            "typing": 7155.8
           }
         }
       ]
@@ -187,68 +323,128 @@
       "provider": "sql-highlight",
       "language": "sql",
       "median": {
-        "readyMs": 9.430709000000007,
-        "rssMiB": 76.109375,
+        "readyMs": 22.235292000000072,
+        "readyCpuMs": 10.9,
+        "rssMiB": 75.828125,
+        "cpuMicroseconds": {
+          "line": 13.190553745928339,
+          "document100": 1266.88,
+          "multiline": 5.154643628509719,
+          "redraw100": 1387,
+          "typing": 368.36875
+        },
         "microseconds": {
-          "line": 15.394628153846156,
-          "redraw100": 1563.8636857142842,
-          "typing": 460.1225409090903
+          "line": 32.80089576547232,
+          "document100": 2904.044775000001,
+          "multiline": 10.800557991360687,
+          "redraw100": 11470.3667,
+          "typing": 775.3137846153829
         }
       },
       "samples": [
         {
-          "setupMs": 10.632041999999998,
-          "firstRenderMs": 2.065833000000012,
-          "readyMs": 12.69787500000001,
-          "rssMiB": 76.21875,
+          "setupMs": 28.541833999999994,
+          "firstRenderMs": 3.1724159999999983,
+          "readyMs": 31.714249999999993,
+          "readyCpuMs": 10.9,
+          "rssMiB": 72.703125,
           "timings": {
-            "line": 12.837254358974361,
-            "redraw100": 1306.7356444444442,
-            "typing": 674.5683333333337
+            "line": 113.11802359550558,
+            "document100": 18636.304199999995,
+            "multiline": 49.29382167487685,
+            "redraw100": 9003.154199999994,
+            "typing": 30265.833399999996
+          },
+          "cpuTimings": {
+            "line": 17.635955056179775,
+            "document100": 1526.7,
+            "multiline": 6.293596059113301,
+            "redraw100": 1387,
+            "typing": 545.1
           }
         },
         {
-          "setupMs": 6.326625000000007,
-          "firstRenderMs": 1.6748329999999925,
-          "readyMs": 8.001458,
-          "rssMiB": 76.109375,
+          "setupMs": 11.345541999999995,
+          "firstRenderMs": 2.9833750000000094,
+          "readyMs": 14.328917000000004,
+          "readyCpuMs": 10.085,
+          "rssMiB": 77.359375,
           "timings": {
-            "line": 15.43277473035439,
-            "redraw100": 1704.6805666666662,
-            "typing": 371.5790148148149
+            "line": 20.425931372549012,
+            "document100": 1549.6297714285706,
+            "multiline": 6.483786973428389,
+            "redraw100": 17516.53749999999,
+            "typing": 626.3015624999995
+          },
+          "cpuTimings": {
+            "line": 11.132745098039216,
+            "document100": 997.2571428571429,
+            "multiline": 4.653596889176928,
+            "redraw100": 1569.5,
+            "typing": 368.36875
           }
         },
         {
-          "setupMs": 276.576,
-          "firstRenderMs": 4.579665999999975,
-          "readyMs": 281.155666,
-          "rssMiB": 63.875,
+          "setupMs": 20.133084000000053,
+          "firstRenderMs": 2.1022080000000187,
+          "readyMs": 22.235292000000072,
+          "readyCpuMs": 11.3,
+          "rssMiB": 66.671875,
           "timings": {
-            "line": 52.77454427083332,
-            "redraw100": 1563.8636857142842,
-            "typing": 460.1225409090903
+            "line": 725.8114999999998,
+            "document100": 6220.229200000017,
+            "multiline": 5736.091650000003,
+            "redraw100": 35961.41669999997,
+            "typing": 22374.199999999975
+          },
+          "cpuTimings": {
+            "line": 22.652,
+            "document100": 1566.2,
+            "multiline": 20.3,
+            "redraw100": 1764.2,
+            "typing": 673.7
           }
         },
         {
-          "setupMs": 5.525165999999999,
-          "firstRenderMs": 1.5021249999999995,
-          "readyMs": 7.027290999999998,
-          "rssMiB": 76.765625,
+          "setupMs": 39.906875000000014,
+          "firstRenderMs": 4.459917000000019,
+          "readyMs": 44.36679200000003,
+          "readyCpuMs": 12.304,
+          "rssMiB": 75.828125,
           "timings": {
-            "line": 15.394628153846156,
-            "redraw100": 1344.9760374999996,
-            "typing": 436.8338782608695
+            "line": 32.80089576547232,
+            "document100": 2613.910840000001,
+            "multiline": 7.7710923076923075,
+            "redraw100": 11470.3667,
+            "typing": 560.4219944444443
+          },
+          "cpuTimings": {
+            "line": 13.190553745928339,
+            "document100": 1266.88,
+            "multiline": 4.407148407148407,
+            "redraw100": 1366.6,
+            "typing": 358.2388888888889
           }
         },
         {
-          "setupMs": 6.985334000000009,
-          "firstRenderMs": 2.4453749999999985,
-          "readyMs": 9.430709000000007,
-          "rssMiB": 75.8125,
+          "setupMs": 19.505792000000014,
+          "firstRenderMs": 2.118791999999985,
+          "readyMs": 21.624584,
+          "readyCpuMs": 8.938,
+          "rssMiB": 77.625,
           "timings": {
-            "line": 15.0641792481203,
-            "redraw100": 2066.284999999999,
-            "typing": 527.2754368421051
+            "line": 27.46007112299465,
+            "document100": 2904.044775000001,
+            "multiline": 10.800557991360687,
+            "redraw100": 2230.0466800000004,
+            "typing": 775.3137846153829
+          },
+          "cpuTimings": {
+            "line": 11.674064171122994,
+            "document100": 1200.875,
+            "multiline": 5.154643628509719,
+            "redraw100": 1057.44,
+            "typing": 347.89230769230767
           }
         }
       ]
@@ -257,68 +453,128 @@
       "provider": "twinkleplop",
       "language": "graphql",
       "median": {
-        "readyMs": 19.601416999999998,
-        "rssMiB": 78.265625,
+        "readyMs": 52.753833000000014,
+        "readyCpuMs": 21.94,
+        "rssMiB": 76.953125,
+        "cpuMicroseconds": {
+          "line": 4.624644549763033,
+          "document100": 345.5125,
+          "multiline": 2.1003892312682453,
+          "redraw100": 401.6666666666667,
+          "typing": 134
+        },
         "microseconds": {
-          "line": 2.230108695652174,
-          "redraw100": 358.0630964285713,
-          "typing": 82.05782131147542
+          "line": 25.24072867298578,
+          "document100": 679.3760437499998,
+          "multiline": 5.960183253873654,
+          "redraw100": 1867.669433333335,
+          "typing": 3370.4305666666714
         }
       },
       "samples": [
         {
-          "setupMs": 15.796374999999998,
-          "firstRenderMs": 0.5202079999999967,
-          "readyMs": 16.316582999999994,
-          "rssMiB": 78.1875,
+          "setupMs": 35.753333,
+          "firstRenderMs": 0.7185839999999644,
+          "readyMs": 36.47191699999996,
+          "readyCpuMs": 23.525,
+          "rssMiB": 62.390625,
           "timings": {
-            "line": 2.128818219547624,
-            "redraw100": 282.20347222222216,
-            "typing": 66.76033333333335
+            "line": 253.96694500000004,
+            "document100": 5159.889600000008,
+            "multiline": 11.112187839305092,
+            "redraw100": 7283.389599999998,
+            "typing": 3370.4305666666714
+          },
+          "cpuTimings": {
+            "line": 9.286666666666667,
+            "document100": 399,
+            "multiline": 3.095114006514658,
+            "redraw100": 479.75,
+            "typing": 615.8333333333334
           }
         },
         {
-          "setupMs": 19.232167000000004,
-          "firstRenderMs": 0.36924999999999386,
-          "readyMs": 19.601416999999998,
-          "rssMiB": 78.265625,
+          "setupMs": 55.61283300000002,
+          "firstRenderMs": 0.7423749999999814,
+          "readyMs": 56.355208000000005,
+          "readyCpuMs": 21.94,
+          "rssMiB": 78.71875,
           "timings": {
-            "line": 2.2173207538802657,
-            "redraw100": 187.37022727272736,
-            "typing": 53.887880645161275
+            "line": 5.18962327630897,
+            "document100": 556.4074055555557,
+            "multiline": 12.645417193426033,
+            "redraw100": 748.2252999999998,
+            "typing": 4546.616666666667
+          },
+          "cpuTimings": {
+            "line": 3.9211508553654744,
+            "document100": 305.64444444444445,
+            "multiline": 1.9443742098609356,
+            "redraw100": 380.82142857142856,
+            "typing": 134
           }
         },
         {
-          "setupMs": 16.132000000000005,
-          "firstRenderMs": 0.7849999999999966,
-          "readyMs": 16.917,
-          "rssMiB": 78.265625,
+          "setupMs": 52.067499999999995,
+          "firstRenderMs": 0.686333000000019,
+          "readyMs": 52.753833000000014,
+          "readyCpuMs": 23.664,
+          "rssMiB": 79.09375,
           "timings": {
-            "line": 2.230108695652174,
-            "redraw100": 358.0630964285713,
-            "typing": 82.05782131147542
+            "line": 13.006360988296489,
+            "document100": 679.3760437499998,
+            "multiline": 5.960183253873654,
+            "redraw100": 1327.1003416666674,
+            "typing": 284.72372499999966
+          },
+          "cpuTimings": {
+            "line": 4.271651495448634,
+            "document100": 345.5125,
+            "multiline": 2.7732419547079856,
+            "redraw100": 384.025,
+            "typing": 81.26388888888889
           }
         },
         {
-          "setupMs": 19.653999999999996,
-          "firstRenderMs": 0.6792920000000038,
-          "readyMs": 20.333292,
-          "rssMiB": 78.28125,
+          "setupMs": 14.54112500000008,
+          "firstRenderMs": 0.7182080000000042,
+          "readyMs": 15.259333000000083,
+          "readyCpuMs": 16.043,
+          "rssMiB": 67.984375,
           "timings": {
-            "line": 7.032235277582571,
-            "redraw100": 443.6344999999999,
-            "typing": 94.42114811320754
+            "line": 38.15394265232977,
+            "document100": 4016.808333333328,
+            "multiline": 3.2504027570548133,
+            "redraw100": 17255.5791,
+            "typing": 446.0006531249995
+          },
+          "cpuTimings": {
+            "line": 4.969892473118279,
+            "document100": 392.53333333333336,
+            "multiline": 2.1003892312682453,
+            "redraw100": 574.6,
+            "typing": 94.134375
           }
         },
         {
-          "setupMs": 73.284042,
-          "firstRenderMs": 0.7277919999999654,
-          "readyMs": 74.01183399999996,
-          "rssMiB": 75.671875,
+          "setupMs": 54.338374999999985,
+          "firstRenderMs": 2.310208000000017,
+          "readyMs": 56.648583,
+          "readyCpuMs": 21.785,
+          "rssMiB": 76.953125,
           "timings": {
-            "line": 4.434345434397164,
-            "redraw100": 1119.3848937500002,
-            "typing": 103.13801546391748
+            "line": 25.24072867298578,
+            "document100": 500.43015714285707,
+            "multiline": 3.3441825476429283,
+            "redraw100": 1867.669433333335,
+            "typing": 3709.222233333336
+          },
+          "cpuTimings": {
+            "line": 4.624644549763033,
+            "document100": 290.6952380952381,
+            "multiline": 2.048278167836844,
+            "redraw100": 401.6666666666667,
+            "typing": 135.4
           }
         }
       ]
@@ -327,68 +583,128 @@
       "provider": "shiki",
       "language": "graphql",
       "median": {
-        "readyMs": 224.236292,
-        "rssMiB": 107.921875,
+        "readyMs": 1040.423625,
+        "readyCpuMs": 216.181,
+        "rssMiB": 96.078125,
+        "cpuMicroseconds": {
+          "line": 178.25853658536585,
+          "document100": 6133.6,
+          "multiline": 58.01940298507463,
+          "redraw100": 4904,
+          "typing": 1466.24
+        },
         "microseconds": {
-          "line": 59.102818823529404,
-          "redraw100": 4586.5722000000005,
-          "typing": 1112.7393555555575
+          "line": 501.1505097560976,
+          "document100": 12781.333349999999,
+          "multiline": 166.1784820895525,
+          "redraw100": 8953.729150000003,
+          "typing": 3668.2391800000005
         }
       },
       "samples": [
         {
-          "setupMs": 197.017917,
-          "firstRenderMs": 27.21837499999998,
-          "readyMs": 224.236292,
-          "rssMiB": 107.46875,
+          "setupMs": 421.01529200000004,
+          "firstRenderMs": 27.561165999999957,
+          "readyMs": 448.576458,
+          "readyCpuMs": 202.084,
+          "rssMiB": 96.078125,
           "timings": {
-            "line": 68.55856164383563,
-            "redraw100": 5102.833350000003,
-            "typing": 1070.9303000000007
+            "line": 501.1505097560976,
+            "document100": 10065.664599999991,
+            "multiline": 151.82569545454567,
+            "redraw100": 7613.277100000005,
+            "typing": 11071.924999999965
+          },
+          "cpuTimings": {
+            "line": 178.25853658536585,
+            "document100": 5335.5,
+            "multiline": 43.21363636363636,
+            "redraw100": 4327.1,
+            "typing": 1569.8
           }
         },
         {
-          "setupMs": 190.60299999999998,
-          "firstRenderMs": 15.139333000000022,
-          "readyMs": 205.742333,
-          "rssMiB": 107.921875,
+          "setupMs": 1415.275959,
+          "firstRenderMs": 296.1545410000001,
+          "readyMs": 1711.4305000000002,
+          "readyCpuMs": 216.181,
+          "rssMiB": 84.703125,
           "timings": {
-            "line": 59.102818823529404,
-            "redraw100": 4560.915266666662,
-            "typing": 1112.7393555555575
+            "line": 279.1453694444436,
+            "document100": 12781.333349999999,
+            "multiline": 57.904456069364095,
+            "redraw100": 8953.729150000003,
+            "typing": 14975.84160000001
+          },
+          "cpuTimings": {
+            "line": 147.75,
+            "document100": 6133.6,
+            "multiline": 35.7242774566474,
+            "redraw100": 4556.55,
+            "typing": 1034.7
           }
         },
         {
-          "setupMs": 299.93050000000005,
-          "firstRenderMs": 24.545499999999947,
-          "readyMs": 324.476,
-          "rssMiB": 106.9375,
+          "setupMs": 878.2822080000001,
+          "firstRenderMs": 162.14141699999982,
+          "readyMs": 1040.423625,
+          "readyCpuMs": 253.133,
+          "rssMiB": 96.859375,
           "timings": {
-            "line": 65.27283506493504,
-            "redraw100": 4363.351366666666,
-            "typing": 1295.7592555555568
+            "line": 863.0093320000005,
+            "document100": 68072.4792,
+            "multiline": 586.3209459459454,
+            "redraw100": 25391.645800000017,
+            "typing": 2073.2758400000057
+          },
+          "cpuTimings": {
+            "line": 281.384,
+            "document100": 8381.3,
+            "multiline": 77.1027027027027,
+            "redraw100": 5461.4,
+            "typing": 1333.74
           }
         },
         {
-          "setupMs": 281.36004099999997,
-          "firstRenderMs": 29.679167000000007,
-          "readyMs": 311.039208,
-          "rssMiB": 108.71875,
+          "setupMs": 1300.4626250000001,
+          "firstRenderMs": 109.23920799999996,
+          "readyMs": 1409.701833,
+          "readyCpuMs": 234.819,
+          "rssMiB": 82.375,
           "timings": {
-            "line": 51.61565721649483,
-            "redraw100": 4586.5722000000005,
-            "typing": 1205.9412000000013
+            "line": 12628.620899999987,
+            "document100": 73159.86249999996,
+            "multiline": 10915.487500000017,
+            "redraw100": 75337.97910000003,
+            "typing": 3668.2391800000005
+          },
+          "cpuTimings": {
+            "line": 2346,
+            "document100": 10054.8,
+            "multiline": 150.4,
+            "redraw100": 7829.1,
+            "typing": 1560.34
           }
         },
         {
-          "setupMs": 124.18237500000001,
-          "firstRenderMs": 23.197666999999996,
-          "readyMs": 147.380042,
-          "rssMiB": 108.890625,
+          "setupMs": 635.756083,
+          "firstRenderMs": 32.783250000000066,
+          "readyMs": 668.539333,
+          "readyCpuMs": 204.31,
+          "rssMiB": 96.71875,
           "timings": {
-            "line": 46.446527777777774,
-            "redraw100": 5388.772950000004,
-            "typing": 1096.1574999999993
+            "line": 60.30768072289153,
+            "document100": 6849.1437500000075,
+            "multiline": 166.1784820895525,
+            "redraw100": 7120.479150000005,
+            "typing": 2223.513339999995
+          },
+          "cpuTimings": {
+            "line": 57.11506024096386,
+            "document100": 4355.55,
+            "multiline": 58.01940298507463,
+            "redraw100": 4904,
+            "typing": 1466.24
           }
         }
       ]

@@ -2,4 +2,4 @@
 "@toiroakr/read-multiline": patch
 ---
 
-Document optional Twinkleplop highlighting examples for SQL and GraphQL and provide a reproducible comparison with Shiki and sql-highlight, without adding runtime dependencies.
+Add an optional highlightLines callback that highlights the complete input buffer once per redraw and refreshes affected colors after edits, paste, history, and undo/redo. Include Twinkleplop SQL and GraphQL examples with multiline comments and block strings, plus reproducible benchmarks, without adding runtime dependencies.

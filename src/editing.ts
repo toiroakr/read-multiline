@@ -133,15 +133,10 @@ function canInsertNewline(state: EditorState): boolean {
 
 // --- Transform ---
 
-/**
- * Capture pre-edit lines snapshot when transform is active (not during paste).
- *
- * NOTE: Only invoked from the four core edit operations (insertChar, insertNewline,
- * handleBackspace, handleDelete). Other editing actions (deleteToLineStart,
- * deleteToLineEnd, deleteWordBack) bypass transform/highlight-aware rendering.
- */
-function capturePreEdit(state: EditorState): string[] | null {
-  return state.transform && !state.isPasting ? [...state.lines] : null;
+function capturePreEdit(state: EditorState): { lines: string[]; cursorVisualRow: number } | null {
+  return (state.transform || state.highlightLines) && !state.isPasting
+    ? { lines: [...state.lines], cursorVisualRow: cursorVisualRow(state, state.row, state.col) }
+    : null;
 }
 
 /**
@@ -152,11 +147,12 @@ function capturePreEdit(state: EditorState): string[] | null {
 function applyTransform(
   state: EditorState,
   event: TransformEvent,
-  preEditLines: string[],
+  preEdit: { lines: string[]; cursorVisualRow: number },
   targetRow: number,
   targetCol: number,
 ): void {
-  const result = state.transform!(
+  const preEditLines = preEdit.lines;
+  const result = state.transform?.(
     { lines: [...state.lines], row: targetRow, col: targetCol },
     event,
   );
@@ -193,7 +189,9 @@ function applyTransform(
     // and the final state, otherwise redrawFrom can't navigate or access it.
     const maxRow = Math.min(preEditLines.length, state.lines.length) - 1;
     if (fromRow > maxRow) fromRow = Math.max(0, maxRow);
-    redrawFrom(state, fromRow, targetRow, targetCol);
+    redrawFrom(state, fromRow, targetRow, targetCol, {
+      previousCursorVisualRow: preEdit.cursorVisualRow,
+    });
   } else if (targetRow !== state.row || targetCol !== state.col) {
     moveTo(state, targetRow, targetCol);
   }
@@ -356,7 +354,7 @@ export function deleteToLineStart(state: EditorState): void {
   const deletedWidth = stringWidth(state.lines[state.row].slice(0, state.col));
   state.lines[state.row] = state.lines[state.row].slice(state.col);
   state.col = 0;
-  if (lastVisualRow(state) !== beforeLastVR) {
+  if (state.highlightLines || lastVisualRow(state) !== beforeLastVR) {
     redrawFrom(state, state.row, state.row, state.col, {
       previousCursorVisualRow: beforeCursorVR,
     });
@@ -376,7 +374,7 @@ export function deleteToLineEnd(state: EditorState): void {
   const beforeCursorVR = cursorVisualRow(state, state.row, state.col);
   const beforeLastVR = lastVisualRow(state);
   state.lines[state.row] = state.lines[state.row].slice(0, state.col);
-  if (lastVisualRow(state) !== beforeLastVR) {
+  if (state.highlightLines || lastVisualRow(state) !== beforeLastVR) {
     redrawFrom(state, state.row, state.row, state.col, {
       previousCursorVisualRow: beforeCursorVR,
     });
@@ -406,7 +404,7 @@ export function deleteWordBack(state: EditorState): void {
   const deletedWidth = stringWidth(line.slice(c, state.col));
   state.lines[state.row] = line.slice(0, c) + line.slice(state.col);
   state.col = c;
-  if (lastVisualRow(state) !== beforeLastVR) {
+  if (state.highlightLines || lastVisualRow(state) !== beforeLastVR) {
     redrawFrom(state, state.row, state.row, state.col, {
       previousCursorVisualRow: beforeCursorVR,
     });

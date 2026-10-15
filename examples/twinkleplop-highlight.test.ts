@@ -94,6 +94,82 @@ describe.each([
   });
 });
 
+describe.each([
+  { name: "SQL block comment", tokenize: sql, text: "/*\nbody\n*/\nSELECT 1", color: 8 },
+  {
+    name: "GraphQL block string",
+    tokenize: graphql,
+    text: 'query { field(arg: """\nbody\n""") }\nquery { id }',
+    color: 2,
+  },
+])("$name", ({ tokenize, text, color }) => {
+  const highlight = createTwinkleplopHighlight(tokenize());
+
+  it("preserves the document and resets each colored line", () => {
+    const rendered = highlight(text);
+    expect(stripVTControlCharacters(rendered)).toBe(text);
+    const lines = rendered.split("\n");
+    expect(lines).toHaveLength(4);
+    expect(lines[1]).toBe(`\x1b[${color === 8 ? 90 : 32}mbody\x1b[0m`);
+  });
+
+  it("recolors later lines after delimiter edits, paste, undo, redo and history", async () => {
+    const terminal = new Terminal({ cols: 80, rows: 24, convertEol: true, allowProposedApi: true });
+    const input = Object.assign(new PassThrough(), { isTTY: true, setRawMode() {} });
+    const output = Object.assign(
+      new Writable({
+        write(chunk, _encoding, done) {
+          terminal.write(chunk.toString());
+          done();
+        },
+      }),
+      { columns: 80 },
+    );
+    const send = (value: string) => input.emit("data", Buffer.from(value));
+    const flush = () => new Promise<void>((resolve) => terminal.write("", resolve));
+    const bodyColor = () => terminal.buffer.active.getLine(1)?.getCell(2)?.getFgColor();
+    const result = readMultiline("", {
+      input,
+      output,
+      prefix: "",
+      linePrefix: "| ",
+      helpFooter: false,
+      history: [text],
+      highlightLines: (lines) => highlight(lines.join("\n")).split("\n"),
+      theme: { submitRender: "preserve" },
+    });
+    try {
+      send("\x1b[200~" + text + "\x1b[201~");
+      await flush();
+      expect(bodyColor()).toBe(color);
+      expect(terminal.buffer.active.getLine(1)?.getCell(0)?.isFgDefault()).toBe(true);
+      send("\x1b[1;9A");
+      send("\x0b");
+      await flush();
+      expect(bodyColor()).not.toBe(color);
+      send("\x1a");
+      await flush();
+      expect(bodyColor()).toBe(color);
+      send("\x19");
+      await flush();
+      expect(bodyColor()).not.toBe(color);
+      send("\x1b[5~");
+      await flush();
+      expect(bodyColor()).toBe(color);
+      send("\r");
+      expect(await result).toEqual([text, null]);
+      await flush();
+      expect(bodyColor()).toBe(color);
+    } finally {
+      send("\x03");
+      await result;
+      terminal.dispose();
+      input.destroy();
+      output.destroy();
+    }
+  });
+});
+
 it("preserves gaps and unrecognized token categories", () => {
   const highlight = createTwinkleplopHighlight(() => ({
     token_types: ["future-category"],

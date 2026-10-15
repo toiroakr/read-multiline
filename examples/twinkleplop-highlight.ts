@@ -25,20 +25,20 @@ const colors: Record<string, string> = {
   operator: "\x1b[90m",
 };
 
-export function createTwinkleplopHighlight(tokenize: Tokenize): (line: string) => string {
-  return (line) => {
-    const { tokens, token_types } = tokenize(line);
+export function createTwinkleplopHighlight(tokenize: Tokenize): (source: string) => string {
+  return (source) => {
+    const { tokens, token_types } = tokenize(source);
     let result = "";
     let position = 0;
     for (let i = 0; i < tokens.length; i += 3) {
       const start = tokens[i + 1];
       const end = tokens[i + 2];
       const color = colors[token_types[tokens[i]]];
-      result += line.slice(position, start);
-      const text = line.slice(start, end);
-      result += color ? color + text + RESET : text;
+      result += source.slice(position, start);
+      const text = source.slice(start, end);
+      result += color ? color + text.replaceAll("\n", RESET + "\n" + color) + RESET : text;
       position = end;
     }
-    return result + line.slice(position);
+    return result + source.slice(position);
   };
 }

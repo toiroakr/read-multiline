@@ -46,33 +46,42 @@ async function createHighlight(provider: Provider, lang: Language): Promise<High
   const highlighter = await createHighlighter({ themes: ["nord"], langs: [lang] });
   return (line) => {
     const tokens = highlighter.codeToTokensBase(line, { lang, theme: "nord" });
-    let result = "";
-    for (const token of tokens[0] ?? []) {
-      let prefix = "";
-      if (token.color) {
-        const n = parseInt(token.color.replace("#", "").slice(0, 6), 16);
-        prefix += `\x1b[38;2;${(n >> 16) & 0xff};${(n >> 8) & 0xff};${n & 0xff}m`;
-      }
-      if (token.fontStyle) {
-        if (token.fontStyle & 1) prefix += "\x1b[3m";
-        if (token.fontStyle & 2) prefix += "\x1b[1m";
-      }
-      result += prefix + token.content + "\x1b[0m";
-    }
-    return result;
+    return tokens
+      .map((lineTokens) => {
+        let result = "";
+        for (const token of lineTokens) {
+          let prefix = "";
+          if (token.color) {
+            const n = parseInt(token.color.replace("#", "").slice(0, 6), 16);
+            prefix += `\x1b[38;2;${(n >> 16) & 0xff};${(n >> 8) & 0xff};${n & 0xff}m`;
+          }
+          if (token.fontStyle) {
+            if (token.fontStyle & 1) prefix += "\x1b[3m";
+            if (token.fontStyle & 2) prefix += "\x1b[1m";
+          }
+          result += prefix + token.content + "\x1b[0m";
+        }
+        return result;
+      })
+      .join("\n");
   };
 }
 
 function scenarios(lang: Language): Record<string, string[]> {
   const source = sources[lang];
+  const lines = Array.from({ length: 100 }, (_, i) => source.replace(/id/g, `id${i}`));
   return {
     line: [source],
-    redraw100: Array.from({ length: 100 }, (_, i) => source.replace(/id/g, `id${i}`)),
+    document100: [lines.join("\n")],
+    multiline: [
+      lang === "sql" ? "/*\ncomment\n*/\nSELECT 1;" : 'query { field(arg: """\nbody\n""") } }',
+    ],
+    redraw100: lines,
     typing: Array.from({ length: source.length }, (_, i) => source.slice(0, i + 1)),
   };
 }
 
-function measure(highlight: Highlight, lines: string[]): number {
+function measure(highlight: Highlight, lines: string[]): { wall: number; cpu: number } {
   for (const line of lines) {
     const output = highlight(line);
     assert.equal(stripVTControlCharacters(output), line);
@@ -82,8 +91,12 @@ function measure(highlight: Highlight, lines: string[]): number {
   const run = () => {
     for (const line of lines) checksum += highlight(line).length;
   };
-  for (let i = 0; i < 100; i++) run();
+  const warmupEnd = performance.now() + 100;
+  do {
+    run();
+  } while (performance.now() < warmupEnd);
   let iterations = 0;
+  const cpuStart = process.cpuUsage();
   const start = performance.now();
   let elapsed: number;
   do {
@@ -92,7 +105,8 @@ function measure(highlight: Highlight, lines: string[]): number {
     elapsed = performance.now() - start;
   } while (elapsed < 100);
   assert(checksum > 0);
-  return (elapsed * 1000) / iterations;
+  const cpu = process.cpuUsage(cpuStart);
+  return { wall: (elapsed * 1000) / iterations, cpu: (cpu.user + cpu.system) / iterations };
 }
 
 function median(values: number[]): number {
@@ -107,23 +121,31 @@ if (mode === "--worker") {
   const provider = providerArg as Provider;
   const lang = langArg as Language;
   assert(provider !== "sql-highlight" || lang === "sql");
+  const readyCpuStart = process.cpuUsage();
   const start = performance.now();
   const highlight = await createHighlight(provider, lang);
   const initialized = performance.now();
   const output = highlight(sources[lang]);
   const firstRendered = performance.now();
   assert.equal(stripVTControlCharacters(output), sources[lang]);
+  const readyCpu = process.cpuUsage(readyCpuStart);
+  const readyCpuMs = (readyCpu.user + readyCpu.system) / 1000;
   const rssMiB = process.memoryUsage().rss / 1024 ** 2;
-  const timings = Object.fromEntries(
-    Object.entries(scenarios(lang)).map(([name, lines]) => [name, measure(highlight, lines)]),
-  );
+  const measurements = Object.entries(scenarios(lang)).map(([name, lines]) => ({
+    name,
+    ...measure(highlight, lines),
+  }));
+  const timings = Object.fromEntries(measurements.map(({ name, wall }) => [name, wall]));
+  const cpuTimings = Object.fromEntries(measurements.map(({ name, cpu }) => [name, cpu]));
   process.stdout.write(
     JSON.stringify({
       setupMs: initialized - start,
       firstRenderMs: firstRendered - initialized,
       readyMs: firstRendered - start,
+      readyCpuMs,
       rssMiB,
       timings,
+      cpuTimings,
     }),
   );
 } else {
@@ -141,8 +163,10 @@ if (mode === "--worker") {
       setupMs: number;
       firstRenderMs: number;
       readyMs: number;
+      readyCpuMs: number;
       rssMiB: number;
       timings: Record<string, number>;
+      cpuTimings: Record<string, number>;
     }[],
   }));
   for (let round = 0; round < 5; round++) {
@@ -176,7 +200,7 @@ if (mode === "--worker") {
           versions,
         },
         method:
-          "5 fresh processes per provider/language, rotating order; 100 warmup iterations and >=100ms per scenario; no terminal I/O; startup excludes Node startup and uses warm filesystem cache",
+          "5 fresh processes per provider/language, rotating order; >=100ms warmup and >=100ms measured per scenario; no terminal I/O; startup excludes Node startup and uses warm filesystem cache",
         scenarios: Object.fromEntries(
           Object.entries(sources).map(([lang]) => [
             lang,
@@ -193,7 +217,14 @@ if (mode === "--worker") {
           language: entry.lang,
           median: {
             readyMs: median(entry.samples.map((s) => s.readyMs)),
+            readyCpuMs: median(entry.samples.map((s) => s.readyCpuMs)),
             rssMiB: median(entry.samples.map((s) => s.rssMiB)),
+            cpuMicroseconds: Object.fromEntries(
+              Object.keys(entry.samples[0].cpuTimings).map((name) => [
+                name,
+                median(entry.samples.map((s) => s.cpuTimings[name])),
+              ]),
+            ),
             microseconds: Object.fromEntries(
               Object.keys(entry.samples[0].timings).map((name) => [
                 name,

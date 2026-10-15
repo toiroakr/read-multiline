@@ -98,6 +98,237 @@ describe("Screen rendering (virtual terminal)", () => {
   });
 
   // --- Basic rendering ---
+  it("updates highlighting on other lines when a multiline delimiter is edited", async () => {
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "/*\nbody\n*/\nSELECT",
+      highlightLines: (lines: readonly string[]) => {
+        let inComment = false;
+        return lines.map((line) => {
+          if (line === "/*") inComment = true;
+          const rendered = inComment ? `\x1b[31m${line}\x1b[0m` : line;
+          if (line === "*/") inComment = false;
+          return rendered;
+        });
+      },
+    });
+    try {
+      await flush(vt.term);
+      expect(vt.term.buffer.active.getLine(1)?.getCell(0)?.getFgColor()).toBe(1);
+      input.send(KEY.CMD_UP);
+      input.send(KEY.DELETE);
+      await flush(vt.term);
+      expect(screenLine(vt.term, 0)).toBe("*");
+      expect(screenLine(vt.term, 1)).toBe("body");
+      expect(vt.term.buffer.active.getLine(1)?.getCell(0)?.isFgDefault()).toBe(true);
+      input.send(KEY.CTRL_Z);
+      await flush(vt.term);
+      expect(vt.term.buffer.active.getLine(1)?.getCell(0)?.getFgColor()).toBe(1);
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+  it.each([
+    { name: "insert", initial: "/\nbody", keys: [KEY.CMD_UP, KEY.END, "*"], row: 1, color: 1 },
+    {
+      name: "backspace",
+      initial: "/*\nbody",
+      keys: [KEY.CMD_UP, KEY.END, KEY.BACKSPACE],
+      row: 1,
+      color: -1,
+    },
+    { name: "delete", initial: "/*\nbody", keys: [KEY.CMD_UP, KEY.DELETE], row: 1, color: -1 },
+    {
+      name: "delete to start",
+      initial: "/*\nbody",
+      keys: [KEY.CMD_UP, KEY.END, KEY.CTRL_U],
+      row: 1,
+      color: -1,
+    },
+    {
+      name: "delete to end",
+      initial: "/*\nbody",
+      keys: [KEY.CMD_UP, KEY.CTRL_K],
+      row: 1,
+      color: -1,
+    },
+    {
+      name: "delete word",
+      initial: "/*\nbody",
+      keys: [KEY.CMD_UP, KEY.END, KEY.CTRL_W],
+      row: 1,
+      color: -1,
+    },
+    {
+      name: "split line",
+      initial: "/*\nbody",
+      keys: [KEY.CMD_UP, KEY.RIGHT, KEY.SHIFT_ENTER],
+      row: 2,
+      color: -1,
+    },
+    {
+      name: "merge backspace",
+      initial: "/\n*\nbody",
+      keys: [KEY.CMD_UP, KEY.DOWN, KEY.BACKSPACE],
+      row: 1,
+      color: 1,
+    },
+    {
+      name: "merge delete",
+      initial: "/\n*\nbody",
+      keys: [KEY.CMD_UP, KEY.END, KEY.DELETE],
+      row: 1,
+      color: 1,
+    },
+  ])("recolors the document after $name", async ({ initial, keys, row, color }) => {
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: initial,
+      highlightLines: (lines) =>
+        lines.map((line) => (lines[0] === "/*" ? `\x1b[31m${line}\x1b[0m` : line)),
+    });
+    try {
+      for (const key of keys) input.send(key);
+      await flush(vt.term);
+      expect(screenLine(vt.term, row)).toBe("body");
+      expect(vt.term.buffer.active.getLine(row)?.getCell(0)?.getFgColor()).toBe(color);
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it("uses one document snapshot per redraw and prioritizes it over line highlighting", async () => {
+    const snapshots: string[][] = [];
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "one\ntwo\nthree",
+      highlight: () => "wrong",
+      highlightLines: (lines) => {
+        snapshots.push([...lines]);
+        return lines;
+      },
+    });
+    try {
+      expect(snapshots).toEqual([["one", "two", "three"]]);
+      input.send("!");
+      await flush(vt.term);
+      expect(snapshots).toEqual([
+        ["one", "two", "three"],
+        ["one", "two", "three!"],
+      ]);
+      expect(screenLine(vt.term, 0)).toBe("one");
+      expect(screenLine(vt.term, 2)).toBe("three!");
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it("preserves inline headers, wrapped rows and the footer during document recoloring", async () => {
+    vt.term.dispose();
+    vt = createVirtualTerminal(12);
+    const promise = readMultiline("SQL: ", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "| ",
+      inlinePrompt: true,
+      helpFooter: false,
+      footer: "hint",
+      initialValue: "123456\nbody",
+      highlightLines: (lines) =>
+        lines.map((line) => (lines.join("\n").includes("/*") ? `\x1b[31m${line}\x1b[0m` : line)),
+    });
+    try {
+      input.send(KEY.CMD_UP);
+      input.send(KEY.END);
+      input.send("/");
+      input.send("*");
+      await flush(vt.term);
+      expect(screenLine(vt.term, 0)).toBe("SQL: 123456/");
+      expect(screenLine(vt.term, 1)).toBe("*");
+      expect(screenLine(vt.term, 2)).toBe("| body");
+      expect(screenLine(vt.term, 3)).toBe("hint");
+      expect(vt.term.buffer.active.getLine(2)?.getCell(2)?.getFgColor()).toBe(1);
+      input.send(KEY.CTRL_U);
+      await flush(vt.term);
+      expect(screenLine(vt.term, 0)).toBe("SQL:");
+      expect(screenLine(vt.term, 1)).toBe("| body");
+      expect(screenLine(vt.term, 2)).toBe("hint");
+      expect(cursorPos(vt.term)).toEqual({ x: 5, y: 0 });
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it("recolors earlier lines when a later line changes", async () => {
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "one\ntwo",
+      highlightLines: (lines) =>
+        lines.map((line) => (lines.at(-1)?.endsWith("!") ? `\x1b[31m${line}\x1b[0m` : line)),
+    });
+    try {
+      input.send("!");
+      await flush(vt.term);
+      expect(screenLine(vt.term, 0)).toBe("one");
+      expect(vt.term.buffer.active.getLine(0)?.getCell(0)?.getFgColor()).toBe(1);
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
+  it("highlights the final transformed document once per edit", async () => {
+    const snapshots: string[][] = [];
+    const promise = readMultiline("", {
+      input,
+      output: vt.stream,
+      prefix: "",
+      linePrefix: "",
+      helpFooter: false,
+      initialValue: "/\nbody",
+      transform: (state, event) =>
+        event.type === "insert" ? { ...state, lines: ["/*", "body"], row: 0, col: 2 } : undefined,
+      highlightLines: (lines) => {
+        snapshots.push([...lines]);
+        return lines.map((line) => (lines[0] === "/*" ? `\x1b[31m${line}\x1b[0m` : line));
+      },
+    });
+    try {
+      input.send("*");
+      await flush(vt.term);
+      expect(snapshots).toEqual([
+        ["/", "body"],
+        ["/*", "body"],
+      ]);
+      expect(vt.term.buffer.active.getLine(1)?.getCell(0)?.getFgColor()).toBe(1);
+      expect(cursorPos(vt.term)).toEqual({ x: 2, y: 0 });
+    } finally {
+      input.send(KEY.CTRL_C);
+      await promise;
+    }
+  });
+
   // New layout: prompt header on line 0 (prefix + prompt), input lines below with linePrefix
 
   it("displays prefix header and typed text", async () => {

@@ -150,6 +150,7 @@ function readFromTTY(
       clearAfterSubmit = true,
       disabledKeys = [],
       highlight,
+      highlightLines,
       transform,
       footer,
       helpFooter = true,
@@ -231,6 +232,8 @@ function readFromTTY(
       preferNewlineOnEnter,
       disabledKeys: new Set(disabledKeys),
       highlight,
+      highlightLines,
+      highlightedLines: null,
       transform,
       inlinePrompt,
       keyMap: {},
@@ -469,6 +472,7 @@ function renderStateChange(
   renderState: "submitted" | "cancelled",
   mode: "content" | "preserve" | "ellipsis" | number = "preserve",
 ): void {
+  state.highlightedLines = null;
   // Move to top of editor (input lines + prompt header)
   // In inline mode, header is on same line as input, so use 0 for height
   const upCount = cursorVisualRow(state, state.row, state.col);

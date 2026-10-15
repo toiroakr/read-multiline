@@ -10,12 +10,12 @@ const { tokenize } =
   lang === "sql" ? await import("@twinkleplop/sql") : await import("@twinkleplop/graphql");
 const highlight = createTwinkleplopHighlight(tokenize());
 
-console.log(`${lang} editor (Twinkleplop, line-local syntax highlighting)\n`);
+console.log(`${lang} editor (Twinkleplop, full-document syntax highlighting)\n`);
 
 const [value, error] = await readMultiline("", {
   prefix: `${lang}> `,
   linePrefix: "   | ",
-  highlight,
+  highlightLines: (lines) => highlight(lines.join("\n")).split("\n"),
   preferNewlineOnEnter: true,
   helpFooter: true,
   theme: { submitRender: "content" },

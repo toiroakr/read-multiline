@@ -16,6 +16,10 @@ function getPromptHeaderWidth(state: EditorState): number {
 /** Return the highlighted (or styled) text for a given line */
 export function renderLine(state: EditorState, rowIndex: number): string {
   const line = state.lines[rowIndex];
+  if (state.highlightLines && !state.isPasting) {
+    state.highlightedLines ??= state.highlightLines([...state.lines]);
+    return state.highlightedLines[rowIndex] ?? line;
+  }
   return state.highlight ? state.highlight(line, rowIndex) : styledInput(state, line);
 }
 
@@ -30,6 +34,7 @@ export function w(state: EditorState, text: string): void {
 
 /** Begin buffering output writes for flicker-free batch rendering */
 export function beginBatch(state: EditorState): void {
+  state.highlightedLines = null;
   state.buffering = true;
   state.writeBuffer = "";
 }
@@ -314,6 +319,7 @@ export function redrawFrom(
   targetCol: number,
   options?: { previousCursorVisualRow?: number },
 ): void {
+  if (state.highlightLines) fromRow = 0;
   beginBatch(state);
   const currentVisualRow =
     options?.previousCursorVisualRow ?? cursorVisualRow(state, state.row, state.col);
