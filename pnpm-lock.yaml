@@ -194,7 +194,7 @@ importers:
         specifier: ^1.10.4
         version: 1.10.4(@types/node@26.6.5)(graphql@17.0.2)
       knip:
-        specifier: ^6.42.1
+        specifier: ^6.43.0
         version: 6.43.0
       lefthook:
         specifier: ^2.2.2
