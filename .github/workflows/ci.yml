@@ -27,7 +27,7 @@ jobs:
           node-version: "26.12.1"
           cache: "pnpm"
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile && pnpm -r peers check --lockfile-only
       - name: Typecheck
         run: pnpm run typecheck
       - name: Lint
