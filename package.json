@@ -55,7 +55,7 @@
     "@twinkleplop/sql": "0.1.7",
     "@types/node": "^26.6.6",
     "@xterm/headless": "^6.0.0",
-    "graphql": "16.15.0",
+    "graphql": "17.0.2",
     "graphql-language-service-parser": "^1.10.4",
     "knip": "^6.44.1",
     "lefthook": "^2.2.2",
