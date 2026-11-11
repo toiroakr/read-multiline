@@ -9,13 +9,13 @@ workflows:
     '.github/workflows/ci.yml':
         - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
         - 'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1'
-        - 'pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86'
+        - 'pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115'
     '.github/workflows/karinto.yml':
         - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
     '.github/workflows/preview.yml':
         - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
         - 'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1'
-        - 'pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86'
+        - 'pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115'
     '.github/workflows/release.yml':
         - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
         - 'actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510'
@@ -45,9 +45,9 @@ dependencies:
         commit: 'sha1-ae32849d5ba541f9ae29e40e22a623bc13562f51'
         owner_id: 51163350
         repo_id: 202093906
-    'pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86':
-        ref: 'v6.0.10'
-        commit: 'sha1-0977fd99725f1db4007ccb2928dbb4e90d06cc86'
+    'pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115':
+        ref: 'v6.1.1'
+        commit: 'sha1-73e46992e05b19abd31f2f3c20e0e7370d762115'
         owner_id: 21320719
         repo_id: 262289747
     'pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115':
