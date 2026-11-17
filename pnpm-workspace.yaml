@@ -4,3 +4,6 @@ allowBuilds:
 peerDependencyRules:
   allowedVersions:
     graphql: "17"
+
+lockfile:
+  format: v13
