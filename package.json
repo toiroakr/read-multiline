@@ -34,7 +34,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint -c oxlint.json src .github/scripts/lockfile-runtime-diff.mjs .github/scripts/test-lockfile-runtime-diff.mjs",
-    "lint:fix": "oxlint -c oxlint.json --fix src",
+    "lint:fix": "oxlint -c oxlint.json --fix src .github/scripts/lockfile-runtime-diff.mjs .github/scripts/test-lockfile-runtime-diff.mjs",
     "knip": "knip",
     "format": "oxfmt src .github/scripts/lockfile-runtime-diff.mjs .github/scripts/test-lockfile-runtime-diff.mjs",
     "format:check": "oxfmt --check src .github/scripts/lockfile-runtime-diff.mjs .github/scripts/test-lockfile-runtime-diff.mjs",
