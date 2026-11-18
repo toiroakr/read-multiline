@@ -30,7 +30,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "vitest run",
+    "test": "node --test .github/scripts/test-lockfile-runtime-diff.mjs && vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint -c oxlint.json src",
