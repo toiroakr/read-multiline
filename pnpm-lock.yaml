@@ -204,7 +204,7 @@ snapshots:
 					"version": "1.10.4",
 				},
 				"knip": {
-					"specifier": "^6.45.0",
+					"specifier": "^6.45.1",
 					"version": "6.45.1",
 				},
 				"lefthook": {
