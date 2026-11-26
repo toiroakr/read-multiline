@@ -52,7 +52,7 @@
     "@clack/prompts": "^1.9.0",
     "@inquirer/prompts": "^8.8.0",
     "@twinkleplop/graphql": "0.2.2",
-    "@twinkleplop/sql": "0.1.7",
+    "@twinkleplop/sql": "0.1.8",
     "@types/node": "^26.6.6",
     "@xterm/headless": "^6.0.0",
     "graphql": "17.1.0",
