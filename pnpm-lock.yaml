@@ -189,7 +189,7 @@ snapshots:
 					"version": "8.8.0",
 				},
 				"@twinkleplop/graphql": "0.2.2",
-				"@twinkleplop/sql": "0.1.7",
+				"@twinkleplop/sql": "0.1.8",
 				"@types/node": {
 					"specifier": "^26.6.6",
 					"version": "26.6.6",
@@ -1988,10 +1988,6 @@ snapshots:
 			"integrity": "sha512-cVBuhDQjBZaNMTwBquYfPydrUP+E3hE6oYGasx8h6ZrODIM7/r+gxLDXdd66oszbrggZHEntdE6j+5gYIVyMWQ==",
 		},
 
-		"@twinkleplop/core@0.3.1": {
-			"integrity": "sha512-fMbce7NcJlVROsyI34tz3DCWkAWRWLRlBNCbgwz36mm6yoEO09eyafi8JRN5HJGQIzMr0qjXQ3t3asc7MFSh8Q==",
-		},
-
 		"@twinkleplop/core@0.3.2": {
 			"integrity": "sha512-K4sKQFqTSpEjFz4eCmJGQA6ivtZgpBKdZzu3AzKIP5jwstJWHPI5eWtJgfv6vTsxDVHr3WY02gXnwL3+Rzndhg==",
 		},
@@ -2003,10 +1999,10 @@ snapshots:
 			},
 		},
 
-		"@twinkleplop/sql@0.1.7": {
-			"integrity": "sha512-H0KA5WVohc6IwEQce1S0CZQrt0eXnlkuuYlHxFa8GCj/q82mFg3YvtiPASUSmOKERWN52/yzdT6K0opvlVIT/A==",
+		"@twinkleplop/sql@0.1.8": {
+			"integrity": "sha512-JJfsnRpz0mFFlfMWJhm45Q3L5A54MXom+nV6pCJ6lR6LpBt0vZrtRSJkVNhMH83pyrwT08iAy2ZGFu7ptPB8RQ==",
 			"dependencies": {
-				"@twinkleplop/core": "0.3.1",
+				"@twinkleplop/core": "0.3.2",
 			},
 		},
 
