@@ -188,7 +188,7 @@ snapshots:
 					"specifier": "^8.8.0",
 					"version": "8.8.0",
 				},
-				"@twinkleplop/graphql": "0.2.1",
+				"@twinkleplop/graphql": "0.2.2",
 				"@twinkleplop/sql": "0.1.7",
 				"@types/node": {
 					"specifier": "^26.6.6",
@@ -1992,10 +1992,14 @@ snapshots:
 			"integrity": "sha512-fMbce7NcJlVROsyI34tz3DCWkAWRWLRlBNCbgwz36mm6yoEO09eyafi8JRN5HJGQIzMr0qjXQ3t3asc7MFSh8Q==",
 		},
 
-		"@twinkleplop/graphql@0.2.1": {
-			"integrity": "sha512-hZeiawkMElrRICfncl5X4oW6lO+YXgwqIRMwvSHNzH/J7cpi6gHrZnwnDT5Ave4xJDTaPGj+93wB4jzW3OjTGg==",
+		"@twinkleplop/core@0.3.2": {
+			"integrity": "sha512-K4sKQFqTSpEjFz4eCmJGQA6ivtZgpBKdZzu3AzKIP5jwstJWHPI5eWtJgfv6vTsxDVHr3WY02gXnwL3+Rzndhg==",
+		},
+
+		"@twinkleplop/graphql@0.2.2": {
+			"integrity": "sha512-R3nTo+voWyMbP12H3WJz31M2pNI1ewtxfRZ9Cu9j23cll7bZNMKGvHacYHVWA/4s3tZ3rmXjTBvOPvJFtw6sWQ==",
 			"dependencies": {
-				"@twinkleplop/core": "0.3.1",
+				"@twinkleplop/core": "0.3.2",
 			},
 		},
 
