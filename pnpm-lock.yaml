@@ -240,8 +240,8 @@ snapshots:
 					"version": "7.0.2",
 				},
 				"vitest": {
-					"specifier": "^5.1.0",
-					"version": "5.1.0",
+					"specifier": "^5.1.1",
+					"version": "5.1.2",
 				},
 			},
 		},
@@ -2226,8 +2226,8 @@ snapshots:
 			"integrity": "sha512-1mEZtMKPM09vDmQt5y7YvmN2+DFTP7Tg0EWXdic8/C6VRnpb33e4ghisCIE3WZjsE2N8mf+QV1Zqh7ZFYLWInQ==",
 		},
 
-		"@vitest/mocker@5.1.0": {
-			"integrity": "sha512-5umB9/jlWcqVS6fsrFmv5Gdnpu6wAUio/lEOwAmvB7v+lFo/IW2B9FhAD0p19GCULTgMzLCdUmuCDCnAzWgppQ==",
+		"@vitest/mocker@5.1.2": {
+			"integrity": "sha512-UGc97wUIy0Ji2+9GxzHEJiOhiwkaukgE7VYcUNnjpX3sWnwQ8XogmNXX4WyOukxYgKb8Nh2XFa7KId0ZjpmVhQ==",
 			"peerDependencies": {
 				"msw": {
 					"specifier": "^2.4.9 || ^3.0.0",
@@ -2241,14 +2241,14 @@ snapshots:
 			},
 			"dependencies": {
 				"@jridgewell/trace-mapping": "0.3.31",
-				"@vitest/spy": "5.1.0",
+				"@vitest/spy": "5.1.2",
 				"estree-walker": "3.0.3",
-				"magic-string": "1.4.3",
+				"magic-string": "1.4.5",
 			},
 		},
 
-		"@vitest/spy@5.1.0": {
-			"integrity": "sha512-2DPO5OMHWKrBngC+fCmTQqemNF0gidRhp3lxbBmRhW+M1XJrfgPpqNqWVevXtn2f2ufD5ZaR1B6B641aAlcX5A==",
+		"@vitest/spy@5.1.2": {
+			"integrity": "sha512-PQl0/3+p9GaY71+MHywN6oyHfLhVDD5kcbm7oNRldA2F0ExMU3S8RQdnpteJ9gFAdK5P6KCgE6LqCpUgy57KzA==",
 		},
 
 		"@whatwg-node/events@0.0.3": {
@@ -3072,8 +3072,8 @@ snapshots:
 			"integrity": "sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==",
 		},
 
-		"magic-string@1.4.3": {
-			"integrity": "sha512-z12OxmaPGE0F4xlpGdjuAUckipLpQlTAuAmyGhNoD7ODpYUzvDfvtxUbjM/jwznyP178oju/KDdyi220wNJ0RQ==",
+		"magic-string@1.4.5": {
+			"integrity": "sha512-oLLC2+YvQUfAa+vxoufE/yc1icb87M9iXIRqAoR/2EhE/8cb3SF/+Gi0c2By1B+5Vz2e2vQtUvHiu1+63Znh+w==",
 			"dependencies": {
 				"@jridgewell/sourcemap-codec": "1.6.0",
 			},
@@ -3636,8 +3636,8 @@ snapshots:
 			"engines": {"node": ">=14.16"},
 		},
 
-		"tinybench@6.2.2": {
-			"integrity": "sha512-nIZ2N2dFpjBsg2hgitKu7mA+FvsIJuGJOwysRngmVRRmWgR/UyPjwJj8c/fT/dhm8EkHnF5EOogRf+0Z2qrimA==",
+		"tinybench@6.2.5": {
+			"integrity": "sha512-b/8GRMdnY4cqkfCLyaFpTGIv1qwfi3oT0mWaepwT++6Z/ZrYehNfZZ2JDKVLKGhNoEkS3IIB1ELtCT0XS5DtOA==",
 			"engines": {"node": ">=20.0.0"},
 		},
 
@@ -3863,8 +3863,8 @@ snapshots:
 			},
 		},
 
-		"vitest@5.1.0": {
-			"integrity": "sha512-MzmNFnrwa8v8lF1bLxw3UJ4EREwVOVb75VqJZmUDRjJ6EluK/x9th7qTbaeDk41WxE1GxWqmTXcdsfobfH5sOA==",
+		"vitest@5.1.2": {
+			"integrity": "sha512-VIa2wXV208WraXUbzH+dQUrGcFpPuaiRA8HlhXS8R6/sy9cynw6OMqGj8fmAlH1hot7huTCtWUE14+FdXU3eLw==",
 			"engines": {"node": "^22.12.0 || ^24.0.0 || >=26.0.0"},
 			"hasBin": true,
 			"peerDependencies": {
@@ -3882,11 +3882,11 @@ snapshots:
 					"optional": true,
 				},
 				"@vitest/browser-playwright": {
-					"specifier": "5.1.0",
+					"specifier": "5.1.2",
 					"optional": true,
 				},
 				"@vitest/browser-preview": {
-					"specifier": "5.1.0",
+					"specifier": "5.1.2",
 					"optional": true,
 				},
 				"@vitest/browser-webdriverio": {
@@ -3894,15 +3894,15 @@ snapshots:
 					"optional": true,
 				},
 				"@vitest/coverage-istanbul": {
-					"specifier": "5.1.0",
+					"specifier": "5.1.2",
 					"optional": true,
 				},
 				"@vitest/coverage-v8": {
-					"specifier": "5.1.0",
+					"specifier": "5.1.2",
 					"optional": true,
 				},
 				"@vitest/ui": {
-					"specifier": "5.1.0",
+					"specifier": "5.1.2",
 					"optional": true,
 				},
 				"happy-dom": {
@@ -3920,15 +3920,15 @@ snapshots:
 			},
 			"dependencies": {
 				"@types/chai": "5.2.3",
-				"@vitest/mocker": "5.1.0",
+				"@vitest/mocker": "5.1.2",
 				"chai": "6.3.0",
 				"es-module-lexer": "2.3.2",
 				"expect-type": "1.4.0",
-				"magic-string": "1.4.3",
+				"magic-string": "1.4.5",
 				"obug": "3.0.0",
 				"picomatch": "4.0.7",
 				"std-env": "4.3.0",
-				"tinybench": "6.2.2",
+				"tinybench": "6.2.5",
 				"tinyexec": "1.3.1",
 				"tinyglobby": "0.2.17",
 				"why-is-node-running": "3.2.1",
